@@ -23,7 +23,7 @@
 
             /* ألوان حالات المواعيد الجديدة */
             --status-upcoming: #7B3E6A; /* Primary color */
-            --status-past: #9E9E9E; 	/* Grey for past appointments */
+            --status-past: #9E9E9E;     /* Grey for past appointments */
             --status-completed: #28a745; /* Green for completed */
             --status-cancelled: #dc3545; /* Red for cancelled */
         }
@@ -653,7 +653,12 @@
                 renderCurrentAppointmentsListHtml(sortedData);
 
             } else if (viewId === 'edit-cancel-view') {
-                const sortedData = [...appointments].sort((a, b) => b.created - a.created);
+                // هذا هو الجزء الذي كان يسبب المشكلة
+                // يجب عرض جميع المواعيد هنا بغض النظر عن حالتها الأولية
+                const sortedData = [...appointments].sort((a, b) => {
+                    // ترتيب عكسي حسب تاريخ الإنشاء لظهور الأحدث أولاً
+                    return b.created - a.created; 
+                });
                 renderEditCancelAppointmentsListHtml(sortedData);
             }
         }
@@ -664,7 +669,7 @@
         window.addEventListener('localStorageUpdated', () => {
             // أعد عرض الواجهة النشطة حالياً
             const currentViewId = getCurrentViewId();
-            if (currentViewId !== 'menu-view') { // لا تحتاج لتحديث القائمة الرئيسية نفسها
+            if (currentViewId !== 'menu-view') { 
                 loadDataAndRender(currentViewId);
                 populateServiceSelectors();
                 if (currentViewId === 'services-management-view') {
@@ -706,7 +711,7 @@
             const hasConflict = appointments.some(app => {
                 if (app.status === 'منجز' || app.status === 'ملغى') return false; 
                 
-                const existingStartDateTime = new Date(`${app.date} ${app.time}`).getTime();
+                const existingStartDateTime = new Date(`${app.date} ${app.time}`);
                 const timeDifference = Math.abs(newAppointmentDateTime - existingStartDateTime);
                 
                 return timeDifference < MIN_INTERVAL_MS;
@@ -742,7 +747,7 @@
         });
 
         // ----------------------------------------------------
-        // منطق عرض المواعيد الحالية
+        // منطق عرض المواعيد الحالية (لواجهة 'مواعيد الحجوزات')
         // ----------------------------------------------------
         function renderCurrentAppointmentsListHtml(list) {
             currentAppointmentsList.innerHTML = '';
@@ -781,6 +786,9 @@
                         <div class="detail-row"><strong>الموظف:</strong> ${app.employee || 'غير محدد'}</div>
                         <div class="detail-row"><strong>الهاتف:</strong> <span class="phone-number">${formatPhoneNumber(app.phone)}</span></div>
                         <div class="detail-row"><strong>الملاحظات:</strong> ${app.notes || 'لا يوجد'}</div>
+                        <div style="grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px; border-top: 1px dashed #eee; padding-top: 10px;">
+                            <button class="action-btn" style="background-color: var(--edit-color); color: white; display: block;" onclick="event.stopPropagation(); openEditModal('${app.id}')">تعديل الموعد</button>
+                        </div>
                     </div>
                 `;
                 currentAppointmentsList.appendChild(item);
@@ -793,8 +801,55 @@
 
 
         // ----------------------------------------------------
-        // منطق عرض وتعديل المواعيد
+        // منطق عرض وتعديل المواعيد (لواجهة 'تعديل وإلغاء')
         // ----------------------------------------------------
+        function renderEditCancelAppointmentsListHtml(list) {
+            editCancelAppointmentsList.innerHTML = '';
+            
+            if (list.length === 0) {
+                editCancelAppointmentsList.innerHTML = '<p style="text-align: center; margin-top: 50px; color: var(--primary-color); font-weight: bold;">لا توجد مواعيد لإدارتها حالياً.</p>';
+                return;
+            }
+
+            list.forEach(app => {
+                let statusDisplay = app.status;
+                const appDateTime = new Date(`${app.date} ${app.time}`);
+                if (app.status === 'قادم' && appDateTime < new Date()) {
+                    statusDisplay = 'موعد سابق'; 
+                }
+
+                const statusInfo = getStatusClassAndColor(statusDisplay);
+                const formattedTime = formatTime12Hour(app.time);
+
+                const item = document.createElement('div');
+                item.className = 'appointment-item'; 
+                item.setAttribute('data-id', app.id);
+                item.setAttribute('data-status', statusDisplay); 
+                // إظهار التفاصيل عند الضغط على العنصر
+                item.onclick = (e) => toggleAppointmentDetails(e.currentTarget); 
+
+                item.innerHTML = `
+                    <div class="item-header">
+                        <span>${app.name} (${app.service})</span>
+                        <div style="display:flex; align-items:center;">
+                            <span class="status-badge ${statusInfo.class}" style="margin-left: 10px;">${statusDisplay}</span>
+                            <span>${app.date} - ${formattedTime}</span>
+                        </div>
+                    </div>
+                    <div class="item-details">
+                        <div class="detail-row"><strong>الهاتف:</strong> <span class="phone-number">${formatPhoneNumber(app.phone)}</span></div>
+                        <div class="detail-row"><strong>الخدمة:</strong> ${app.service}</div>
+                        <div class="detail-row"><strong>الموظف:</strong> ${app.employee || 'غير محدد'}</div>
+                        <div class="detail-row"><strong>الملاحظات:</strong> ${app.notes || 'لا يوجد'}</div>
+                        <div style="grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px; border-top: 1px dashed #eee; padding-top: 10px;">
+                            <button class="action-btn" style="background-color: var(--edit-color); color: white;" onclick="event.stopPropagation(); openEditModal('${app.id}')">تعديل/تغيير الحالة</button>
+                        </div>
+                    </div>
+                `;
+                editCancelAppointmentsList.appendChild(item);
+            });
+        }
+        
         window.toggleAppointmentDetails = function(item) {
             item.classList.toggle('active');
         }
@@ -882,7 +937,5 @@
         // ----------------------------------------------------
         checkLoginAndLoad();
     </script>
-
-    <script type="module" src="firebase-sync.js"></script>
 </body>
 </html>
