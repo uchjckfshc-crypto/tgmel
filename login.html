@@ -3,9 +3,11 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>تسجيل دخول — واجهة جذابة + حساب تلقائي</title>
+<title>تسجيل دخول — مركز التجميل</title>
 <style>
-/* كل التنسيقات التي أرسلتها (CSS) تبقى كما هي بدون لمسها */
+/* ---------------------------------------------------- */
+/* التنسيقات (تم الاحتفاظ بجميع التنسيقات كما هي) */
+/* ---------------------------------------------------- */
 :root{
   --bg-base:#FED8D7;
   --bg-accent:#F8D0CC;
@@ -30,7 +32,7 @@ body{
     linear-gradient(45deg, rgba(255,255,255,0.3) 25%, transparent 25%),
     linear-gradient(315deg, rgba(255,255,255,0.3) 25%, transparent 25%);
   background-size: 800px 800px, 800px 800px, 40px 40px, 40px 40px, 40px 40px, 40px 40px;
-  background-position: 0 0, 0 0, 0 0, 10px 0, 0 10px, 10px 10px;
+  background-position: 0 0, 0 0, 0 0, 10px 0, 0 10px, 0 10px, 10px 10px;
   animation: backgroundShift 20s infinite alternate linear;
 }
 
@@ -106,7 +108,6 @@ button.submit:hover{ background: linear-gradient(90deg,var(--accent-hover),#d359
   </div>
 
   <form id="loginForm">
-    <input type="text" id="username" placeholder="البريد الإلكتروني" autocomplete="username" required />
     <div class="pw-wrap">
       <input id="password" type="password" placeholder="كلمة المرور" autocomplete="current-password" required />
       <button type="button" id="toggle" class="toggle" aria-pressed="false">👁️</button>
@@ -129,6 +130,9 @@ const pass = document.getElementById('password');
 const toggle = document.getElementById('toggle');
 const form = document.getElementById('loginForm');
 
+// ----------------------- ثابت كلمة المرور الوحيدة -----------------------
+const CORRECT_PASSWORD = 'rea_spaa';
+
 function coverEye(handEl, palmEl, eyeEl){
   const parentRect = document.getElementById('character').getBoundingClientRect();
   const eyeRect = eyeEl.getBoundingClientRect();
@@ -143,13 +147,13 @@ function coverEye(handEl, palmEl, eyeEl){
     handEl.style.left = desiredHandLeft + 'px';
     handEl.style.top = desiredHandTop + 'px';
     handEl.style.transform = 'rotate(-8deg)';
-    palmL.style.transform = 'translateX(-50%)'; // تم تصحيح هنا
+    palmL.style.transform = 'translateX(-50%)'; 
   } else {
     const rightVal = parentRect.width - (desiredHandLeft + handEl.offsetWidth);
     handEl.style.right = rightVal + 'px';
     handEl.style.top = desiredHandTop + 'px';
     handEl.style.transform = 'rotate(8deg)';
-    palmR.style.transform = 'translateX(-50%)'; // تم تصحيح هنا
+    palmR.style.transform = 'translateX(-50%)'; 
   }
 }
 
@@ -184,33 +188,24 @@ document.addEventListener('mousemove', e=>{
 
 handsLow();
 
-// ----------------------- إضافة منطق الحفظ والتسجيل والتحويل -----------------------
+// ----------------------- منطق تسجيل الدخول بكلمة مرور واحدة -----------------------
 form.addEventListener('submit', e=>{
   e.preventDefault();
-  const username = document.getElementById('username').value.trim();
   const password = document.getElementById('password').value.trim();
-  if(!username || !password){ alert('الرجاء ملء جميع الحقول'); return; }
+  
+  if(!password){ 
+      alert('الرجاء إدخال كلمة المرور.'); 
+      return; 
+  }
 
-  let accounts = JSON.parse(localStorage.getItem('accounts') || '{}');
-
-  if(accounts[username]){
-    // حساب موجود
-    if(accounts[username] === password){
-      localStorage.setItem('isLoggedIn', 'true'); 
-      alert('تم تسجيل الدخول بنجاح! يتم التحويل إلى القائمة الرئيسية.');
-      // تأكد من أن الملف الرئيسي اسمه index.html
-      window.location.href = 'index.html'; 
-    } else {
-      alert('كلمة المرور خاطئة. حاول مجدداً.');
-    }
-  } else {
-    // إنشاء حساب جديد تلقائي
-    accounts[username] = password;
-    localStorage.setItem('accounts', JSON.stringify(accounts));
-    localStorage.setItem('isLoggedIn', 'true');
-    alert('حساب جديد! تم إنشاء الحساب بنجاح ويتم تسجيل دخولك.');
+  // مقارنة كلمة المرور المُدخلة بكلمة المرور الثابتة
+  if(password === CORRECT_PASSWORD){
+    localStorage.setItem('isLoggedIn', 'true'); 
+    alert('✅ تم تسجيل الدخول بنجاح! يتم التحويل إلى القائمة الرئيسية.');
     // تأكد من أن الملف الرئيسي اسمه index.html
     window.location.href = 'index.html'; 
+  } else {
+    alert('❌ كلمة المرور خاطئة. حاول مجدداً.');
   }
 });
 </script>
