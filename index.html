@@ -394,12 +394,11 @@
 
     <script>
         // ----------------------------------------------------
-        // الإعدادات والمتغيرات الأساسية
+        // الإعدادات والمتغيرات الأساسية (باستخدام localStorage)
         // ----------------------------------------------------
-        
-        const APPOINTMENTS_KEY = 'global_appointments_data'; 
-        const SERVICES_KEY = 'global_services_list';         
-        const LOGIN_STATUS_KEY = 'isLoggedIn';               
+        const APPOINTMENTS_KEY = 'appointments';
+        const SERVICES_KEY = 'services';
+        const LOGIN_STATUS_KEY = 'isLoggedIn';
 
         const ALL_VIEWS = ['menu-view', 'new-appointment-view', 'current-appointments-view', 'edit-cancel-view', 'services-management-view'];
         const viewTitles = {
@@ -409,7 +408,6 @@
             'edit-cancel-view': '⚙️ تعديل وإلغاء المواعيد',
             'services-management-view': '💇‍♀️ إدارة الخدمات'
         };
-        let appointmentsData = []; 
 
         // عناصر واجهة المستخدم الرئيسية
         const mainTitle = document.getElementById('main-title');
@@ -421,23 +419,26 @@
         const currentAppointmentsList = document.getElementById('currentAppointmentsList');
         const editCancelAppointmentsList = document.getElementById('editCancelAppointmentsList');
         const editForm = document.getElementById('editForm');
+        const logoutBtn = document.getElementById('logoutBtn');
         
         // ----------------------------------------------------
-        // منطق إدارة الخدمات
+        // منطق إدارة الخدمات (باستخدام localStorage)
         // ----------------------------------------------------
         const DEFAULT_SERVICES = ['شعر', 'بشرة', 'أظافر', 'مكياج'];
 
         function getServices() {
-            let services = JSON.parse(localStorage.getItem(SERVICES_KEY) || '[]'); 
-            if (services.length === 0) {
-                services = DEFAULT_SERVICES;
-                localStorage.setItem(SERVICES_KEY, JSON.stringify(services)); 
-            }
-            return services;
+            const servicesJson = localStorage.getItem(SERVICES_KEY);
+            return servicesJson ? JSON.parse(servicesJson) : DEFAULT_SERVICES;
         }
 
         function saveServices(services) {
-            localStorage.setItem(SERVICES_KEY, JSON.stringify(services)); 
+            localStorage.setItem(SERVICES_KEY, JSON.stringify(services));
+            populateServiceSelectors(); // تحديث قوائم الخدمات بعد الحفظ
+            renderServiceManagement(); // تحديث قائمة إدارة الخدمات
+            // بعد الحفظ المحلي، ادفع التغيير إلى Firebase
+            if (window.firebaseSync && window.firebaseSync.pushServicesToFirebase) {
+                window.firebaseSync.pushServicesToFirebase();
+            }
         }
         
         function populateServiceSelectors() {
@@ -445,9 +446,11 @@
             const serviceSelect = document.getElementById('service');
             const editServiceSelect = document.getElementById('editService');
             
+            // مسح الخيارات الحالية
             serviceSelect.innerHTML = '<option value="" disabled selected>اختر الخدمة المطلوبة</option>';
             editServiceSelect.innerHTML = '';
             
+            // إضافة الخيارات الجديدة
             services.forEach(service => {
                 const option = document.createElement('option');
                 option.value = service;
@@ -480,13 +483,11 @@
         }
 
         function addService(serviceName) {
-            const services = getServices();
+            let services = getServices();
             const name = serviceName.trim();
             if (!services.includes(name) && name !== '') {
                 services.push(name);
                 saveServices(services);
-                populateServiceSelectors();
-                renderServiceManagement();
                 return true;
             }
             return false;
@@ -497,8 +498,6 @@
                 let services = getServices();
                 services = services.filter(s => s !== serviceName);
                 saveServices(services);
-                populateServiceSelectors();
-                renderServiceManagement();
             }
         }
 
@@ -525,25 +524,24 @@
             });
 
             const activeView = document.getElementById(viewId);
-            if (activeView) activeView.style.display = 'flex';
-            
+            if (activeView) activeView.style.display = 'flex'; // تأكد من أنها 'flex' لتظهر بشكل صحيح
+
             mainTitle.textContent = viewTitles[viewId] || 'إدارة مركز تجميل';
             
             if (viewId === 'menu-view') {
                 backBtn.style.display = 'none';
-                document.getElementById('logoutBtn').style.display = 'block';
+                logoutBtn.style.display = 'block';
             } else {
                 backBtn.style.display = 'block';
-                document.getElementById('logoutBtn').style.display = 'none';
+                logoutBtn.style.display = 'none';
                 
-                if (viewId === 'new-appointment-view' || viewId === 'edit-cancel-view') {
-                    populateServiceSelectors();
-                }
+                populateServiceSelectors();
+                
                 if (viewId === 'services-management-view') {
                     renderServiceManagement();
                 }
 
-                loadDataAndRender(viewId);
+                loadDataAndRender(viewId); 
             }
         }
         
@@ -568,12 +566,10 @@
                 window.location.href = 'login.html'; 
                 return;
             } 
-            
-            populateServiceSelectors();
-            showView('menu-view');
+            showView('menu-view'); // عرض القائمة الرئيسية مباشرة بعد التأكد من تسجيل الدخول
         }
 
-        document.getElementById('logoutBtn').addEventListener('click', () => {
+        logoutBtn.addEventListener('click', () => {
             localStorage.removeItem(LOGIN_STATUS_KEY); 
             window.location.href = 'login.html';
         });
@@ -581,6 +577,10 @@
         // ----------------------------------------------------
         // دوال مساعدة
         // ----------------------------------------------------
+        function generateUniqueId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2);
+        }
+
         function formatPhoneNumber(phone) {
             if (!phone) return 'لم يسجل';
             return phone; 
@@ -596,30 +596,38 @@
             }
         }
 
-        // ************************************************************
-        // التعديل رقم 4: دالة جديدة لتنسيق الوقت إلى 12 ساعة مع ص/م
-        // ************************************************************
         function formatTime12Hour(time24) {
             if (!time24) return '';
             const [hours, minutes] = time24.split(':');
             let h = parseInt(hours, 10);
-            const period = h >= 12 ? 'م' : 'ص'; // تحديد صباحًا/مساءً
-            h = h % 12; // تحويل إلى 12 ساعة
-            h = h ? h : 12; // الساعة 0 تصبح 12
+            const period = h >= 12 ? 'م' : 'ص'; 
+            h = h % 12; 
+            h = h ? h : 12; 
             const m = minutes.padStart(2, '0');
             return `${h}:${m} ${period}`;
         }
 
+        // ----------------------------------------------------
+        // تحميل وحفظ المواعيد (باستخدام localStorage)
+        // ----------------------------------------------------
+        function getAppointments() {
+            const appointmentsJson = localStorage.getItem(APPOINTMENTS_KEY);
+            return appointmentsJson ? JSON.parse(appointmentsJson) : [];
+        }
 
-        // ----------------------------------------------------
-        // تحميل وتجهيز البيانات
-        // ----------------------------------------------------
+        function saveAppointments(appointments) {
+            localStorage.setItem(APPOINTMENTS_KEY, JSON.stringify(appointments));
+            // بعد الحفظ المحلي، ادفع التغيير إلى Firebase
+            if (window.firebaseSync && window.firebaseSync.pushAppointmentsToFirebase) {
+                window.firebaseSync.pushAppointmentsToFirebase();
+            }
+        }
+
         function loadDataAndRender(viewId) {
-            appointmentsData = JSON.parse(localStorage.getItem(APPOINTMENTS_KEY) || '[]'); 
-            
-            const noDataMessage = '<p style="text-align: center; margin-top: 50px; color: var(--primary-color); font-weight: bold;">لا توجد مواعيد حالية محفوظة.</p>';
-            
-            if (appointmentsData.length === 0) {
+            const appointments = getAppointments();
+
+            if (appointments.length === 0) {
+                const noDataMessage = '<p style="text-align: center; margin-top: 50px; color: var(--primary-color); font-weight: bold;">لا توجد مواعيد حالية محفوظة.</p>';
                 currentAppointmentsList.innerHTML = noDataMessage;
                 editCancelAppointmentsList.innerHTML = noDataMessage;
                 return;
@@ -627,27 +635,53 @@
 
             if (viewId === 'current-appointments-view') {
                 const now = new Date();
-                const sortedData = [...appointmentsData].sort((a, b) => {
+                const sortedData = [...appointments].sort((a, b) => {
                     const dateTimeA = new Date(`${a.date} ${a.time}`);
                     const dateTimeB = new Date(`${b.date} ${b.time}`);
 
                     if (a.status === 'قادم' && b.status !== 'قادم') return -1;
                     if (b.status === 'قادم' && a.status !== 'قادم') return 1;
 
-                    if (a.status === 'منجز' && b.status !== 'منجز') return -1;
-                    if (b.status === 'منجز' && a.status !== 'منجز') return 1;
+                    if (a.status === 'منجز' && b.status !== 'منجز') return 1;
+                    if (b.status === 'منجز' && a.status !== 'منجز') return -1;
 
-                    if (a.status === 'ملغى' && b.status !== 'ملغى') return -1;
-                    if (b.status === 'ملغى' && a.status !== 'ملغى') return 1;
+                    if (a.status === 'ملغى' && b.status !== 'ملغى') return 1;
+                    if (b.status === 'ملغى' && a.status !== 'ملغى') return -1;
                     
                     return dateTimeA - dateTimeB; 
                 });
-                renderCurrentAppointments(sortedData);
+                renderCurrentAppointmentsListHtml(sortedData);
 
             } else if (viewId === 'edit-cancel-view') {
-                const sortedData = [...appointmentsData].sort((a, b) => b.created - a.created);
-                renderEditCancelAppointments(sortedData);
+                const sortedData = [...appointments].sort((a, b) => b.created - a.created);
+                renderEditCancelAppointmentsListHtml(sortedData);
             }
+        }
+
+        // ----------------------------------------------------
+        // تحديث الواجهات بعد المزامنة من Firebase (حدث مخصص)
+        // ----------------------------------------------------
+        window.addEventListener('localStorageUpdated', () => {
+            // أعد عرض الواجهة النشطة حالياً
+            const currentViewId = getCurrentViewId();
+            if (currentViewId !== 'menu-view') { // لا تحتاج لتحديث القائمة الرئيسية نفسها
+                loadDataAndRender(currentViewId);
+                populateServiceSelectors();
+                if (currentViewId === 'services-management-view') {
+                    renderServiceManagement();
+                }
+            }
+            console.log("UI updated based on localStorage changes from Firebase sync.");
+        });
+
+        function getCurrentViewId() {
+            for (let id of ALL_VIEWS) {
+                const element = document.getElementById(id);
+                if (element && getComputedStyle(element).display === 'flex') {
+                    return id;
+                }
+            }
+            return 'menu-view'; 
         }
 
         // ----------------------------------------------------
@@ -667,11 +701,10 @@
             }
 
             const MIN_INTERVAL_MS = 90 * 60 * 1000; 
+            const appointments = getAppointments();
 
-            let allAppointments = JSON.parse(localStorage.getItem(APPOINTMENTS_KEY) || '[]'); 
-            
-            const hasConflict = allAppointments.some(app => {
-                if (app.id === id || app.status === 'منجز' || app.status === 'ملغى') return false; // تجاهل المواعيد المنجزة والملغاة
+            const hasConflict = appointments.some(app => {
+                if (app.status === 'منجز' || app.status === 'ملغى') return false; 
                 
                 const existingStartDateTime = new Date(`${app.date} ${app.time}`).getTime();
                 const timeDifference = Math.abs(newAppointmentDateTime - existingStartDateTime);
@@ -685,7 +718,7 @@
             }
 
             const newAppointment = {
-                id: Date.now().toString(), 
+                id: generateUniqueId(),
                 created: Date.now(), 
                 name: document.getElementById('name').value, 
                 phone: document.getElementById('phone').value,
@@ -697,41 +730,43 @@
                 status: 'قادم' 
             };
 
-            allAppointments.push(newAppointment);
-            localStorage.setItem(APPOINTMENTS_KEY, JSON.stringify(allAppointments)); 
+            appointments.push(newAppointment);
+            saveAppointments(appointments); // تتضمن الآن الدفع إلى Firebase
 
             newAppointmentForm.reset();
             saveResultDiv.textContent = '✅ تم تسجيل الموعد بنجاح!';
             saveResultDiv.style.display = 'block';
 
             setTimeout(() => { saveResultDiv.style.display = 'none'; }, 3000);
+            loadDataAndRender('current-appointments-view'); // تحديث العرض
         });
 
         // ----------------------------------------------------
-        // منطق عرض المواعيد الحالية (تم تطبيق formatTime12Hour)
+        // منطق عرض المواعيد الحالية
         // ----------------------------------------------------
-        function renderCurrentAppointments(list) {
+        function renderCurrentAppointmentsListHtml(list) {
             currentAppointmentsList.innerHTML = '';
 
             const now = new Date();
-            const futureAppointments = list.filter(app => {
+            const filteredAppointments = list.filter(app => {
                 const appDateTime = new Date(`${app.date} ${app.time}`);
-                return (appDateTime > now && app.status !== 'ملغى' && app.status !== 'منجز') || app.status === 'منجز' || app.status === 'ملغى';
+                return (app.status === 'قادم' && appDateTime >= now) || app.status === 'منجز' || app.status === 'ملغى';
             });
             
-             futureAppointments.forEach(app => {
-                const isPast = new Date(`${app.date} ${app.time}`) < now && app.status === 'قادم';
-                const statusDisplay = isPast ? 'موعد سابق' : app.status;
+             filteredAppointments.forEach(app => {
+                const appDateTime = new Date(`${app.date} ${app.time}`);
+                let statusDisplay = app.status;
+                if (app.status === 'قادم' && appDateTime < now) {
+                    statusDisplay = 'موعد سابق'; 
+                }
                 const statusInfo = getStatusClassAndColor(statusDisplay);
 
-                // ************************************************************
-                // تطبيق دالة تنسيق الوقت هنا
-                // ************************************************************
                 const formattedTime = formatTime12Hour(app.time);
 
                 const item = document.createElement('div');
                 item.className = 'appointment-item clickable';
                 item.setAttribute('data-id', app.id);
+                item.setAttribute('data-status', statusDisplay); 
                 item.onclick = (e) => toggleAppointmentDetails(e.currentTarget);
                 item.innerHTML = `
                     <div class="item-header">
@@ -751,67 +786,22 @@
                 currentAppointmentsList.appendChild(item);
             });
 
-            if (futureAppointments.length === 0) {
+            if (filteredAppointments.length === 0) {
                 currentAppointmentsList.innerHTML = '<p style="text-align: center; margin-top: 50px; color: var(--primary-color); font-weight: bold;">لا توجد مواعيد للعرض حالياً.</p>';
             }
         }
 
 
         // ----------------------------------------------------
-        // منطق عرض وتعديل المواعيد (تم تطبيق formatTime12Hour)
-        // ----------------------------------------------------
-        function renderEditCancelAppointments(list) {
-            editCancelAppointmentsList.innerHTML = '';
-
-            list.forEach(app => {
-                const statusInfo = getStatusClassAndColor(app.status);
-
-                // ************************************************************
-                // تطبيق دالة تنسيق الوقت هنا
-                // ************************************************************
-                const formattedTime = formatTime12Hour(app.time);
-
-                const item = document.createElement('div');
-                item.className = 'appointment-item clickable';
-                item.setAttribute('data-id', app.id);
-                item.setAttribute('data-status', app.status);
-                item.onclick = (e) => toggleAppointmentDetails(e.currentTarget);
-                item.innerHTML = `
-                    <div class="item-header">
-                        <span>${app.name} (${app.service})</span>
-                        <div style="display:flex; align-items:center;">
-                            <span class="status-badge ${statusInfo.class}">${app.status}</span>
-                            <span>${app.date} - ${formattedTime}</span>
-                        </div>
-                    </div>
-                    <div class="item-details">
-                        <div class="detail-row"><strong>الهاتف:</strong> <span class="phone-number">${formatPhoneNumber(app.phone)}</span></div>
-                        <div class="detail-row"><strong>الخدمة:</strong> ${app.service}</div>
-                        <div class="detail-row"><strong>الموظف:</strong> ${app.employee || 'غير محدد'}</div>
-                        <div class="detail-row"><strong>الملاحظات:</strong> ${app.notes || 'لا يوجد'}</div>
-                        <div style="grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px; border-top: 1px dashed #eee; padding-top: 10px;">
-                            <button class="action-btn" style="background-color: var(--edit-color); color: white;" onclick="event.stopPropagation(); openEditModal('${app.id}')">تعديل الموعد</button>
-                        </div>
-                    </div>
-                `;
-                editCancelAppointmentsList.appendChild(item);
-            });
-
-            if (list.length === 0) {
-                editCancelAppointmentsList.innerHTML = '<p style="text-align: center; margin-top: 50px; color: var(--primary-color); font-weight: bold;">لا توجد مواعيد لإدارتها حالياً.</p>';
-            }
-        }
-
-
-        // ----------------------------------------------------
-        // منطق التعديل والحفظ
+        // منطق عرض وتعديل المواعيد
         // ----------------------------------------------------
         window.toggleAppointmentDetails = function(item) {
             item.classList.toggle('active');
         }
 
         window.openEditModal = function(id) {
-            const app = appointmentsData.find(a => a.id === id);
+            const appointments = getAppointments();
+            const app = appointments.find(a => a.id === id);
             if (!app) return;
 
             document.getElementById('editId').value = app.id;
@@ -839,14 +829,18 @@
             const newTime = document.getElementById('editTime').value;
             const newStatus = document.getElementById('editStatus').value;
             
-            const existingApp = appointmentsData.find(a => a.id === id);
+            let appointments = getAppointments();
+            const appIndex = appointments.findIndex(a => a.id === id);
+            if (appIndex === -1) return;
 
+            // التحقق من التضارب فقط إذا كانت الحالة "قادم"
             if (newStatus === 'قادم') {
                 const editedDateTime = new Date(`${newDate} ${newTime}`).getTime();
                 const MIN_INTERVAL_MS = 90 * 60 * 1000; 
 
-                const hasConflict = appointmentsData.some(app => {
-                    if (app.id === id || app.status === 'منجز' || app.status === 'ملغى') return false; 
+                const hasConflict = appointments.some((app, index) => {
+                    // تجاهل الموعد الذي يتم تعديله نفسه
+                    if (index === appIndex || app.status === 'منجز' || app.status === 'ملغى') return false; 
                     
                     const existingStartDateTime = new Date(`${app.date} ${app.time}`).getTime();
                     const timeDifference = Math.abs(editedDateTime - existingStartDateTime);
@@ -863,26 +857,23 @@
                 }
             }
 
-
-            const appIndex = appointmentsData.findIndex(a => a.id === id);
-            if (appIndex !== -1) {
-                appointmentsData[appIndex] = {
-                    ...appointmentsData[appIndex],
-                    name: document.getElementById('editName').value, 
-                    phone: document.getElementById('editPhone').value,
-                    date: newDate, 
-                    time: newTime,
-                    service: document.getElementById('editService').value, 
-                    employee: document.getElementById('editEmployee').value,
-                    notes: document.getElementById('editNotes').value,
-                    status: newStatus 
-                };
-                
-                localStorage.setItem(APPOINTMENTS_KEY, JSON.stringify(appointmentsData)); 
-                closeModal();
-                loadDataAndRender('edit-cancel-view'); 
-                alert('✅ تم حفظ التعديلات بنجاح!');
-            }
+            // تحديث بيانات الموعد
+            appointments[appIndex] = {
+                ...appointments[appIndex],
+                name: document.getElementById('editName').value, 
+                phone: document.getElementById('editPhone').value,
+                date: newDate, 
+                time: newTime,
+                service: document.getElementById('editService').value, 
+                employee: document.getElementById('editEmployee').value,
+                notes: document.getElementById('editNotes').value,
+                status: newStatus 
+            };
+            
+            saveAppointments(appointments); // تتضمن الآن الدفع إلى Firebase
+            closeModal();
+            alert('✅ تم حفظ التعديلات بنجاح!');
+            loadDataAndRender('edit-cancel-view'); // تحديث العرض بعد الحفظ
         });
 
 
@@ -891,5 +882,7 @@
         // ----------------------------------------------------
         checkLoginAndLoad();
     </script>
+
+    <script type="module" src="firebase-sync.js"></script>
 </body>
 </html>
