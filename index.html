@@ -50,12 +50,12 @@
         }
         
         /* -------------------------------------- */
-        /* رأس الصفحة والتنقل (التعديل الحاسم على زر العودة) */
+        /* رأس الصفحة والتنقل */
         /* -------------------------------------- */
         .main-header {
             position: fixed; top: 0; left: 0; width: 100%; background-color: var(--card-color);
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); z-index: 100; 
-            padding: 12px 20px; /* زيادة Padding لضمان مساحة كافية */
+            padding: 12px 20px; 
             display: flex; 
             justify-content: space-between; 
             align-items: center;
@@ -65,35 +65,62 @@
             margin: 0; 
             font-size: 24px; 
             letter-spacing: 1px;
-            flex-grow: 1; /* يسمح للعنوان بالنمو لملء المساحة المتبقية */
+            flex-grow: 1; 
             text-align: center;
-            padding: 0 10px; /* مسافة داخلية إضافية لمنع تداخله مع الأزرار */
+            padding: 0 10px; 
         }
         
         .logout-btn {
             background-color: var(--cancel-color); color: white; border: none;
             padding: 8px 12px; border-radius: 6px; cursor: pointer; font-weight: bold;
             transition: background-color 0.3s; 
-            white-space: nowrap; /* تأكيد عدم كسر النص */
-            order: 3; /* ترتيبه في النهاية (يسار الشاشة) */
+            white-space: nowrap; 
+            order: 3; 
         }
 
-        /* تعديل تصميم ومكان زر العودة لضمان ظهوره بالكامل */
         .back-btn { 
             background-color: var(--primary-color); color: white; border: none;
             padding: 8px 12px; border-radius: 6px; cursor: pointer; font-weight: bold;
             transition: background-color 0.3s;
             display: none; 
-            white-space: nowrap; /* هام: يمنع كسر النص وظهوره مقتطعاً */
-            order: 1; /* ترتيبه في البداية (يمين الشاشة) */
+            white-space: nowrap; 
+            order: 1; 
         }
         .back-btn:hover { background-color: var(--dark-pink); }
+
+        /* -------------------------------------- */
+        /* تنسيق الشعار في القائمة الرئيسية */
+        /* -------------------------------------- */
+        .menu-logo-container {
+            width: 100%;
+            max-width: 900px;
+            text-align: center;
+            margin-bottom: 40px; /* مسافة تحت الشعار وفوق البطاقات */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .menu-logo {
+            height: 120px; /* حجم كبير وواضح للشعار */
+            width: auto;
+            border-radius: 50%;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+            margin-bottom: 15px;
+        }
+        
+        .menu-logo-container h2 {
+            color: var(--dark-pink);
+            font-size: 28px;
+            margin: 0;
+        }
 
         /* -------------------------------------- */
         /* تنسيقات الواجهات العامة والبطاقات */
         /* -------------------------------------- */
         .view { width: 100%; max-width: 1200px; display: none; flex-direction: column; align-items: center; padding-bottom: 40px; }
-        #menu-view { display: flex; justify-content: center; min-height: calc(100vh - 100px); }
+        /* تعديل الارتفاع الأدنى لكي يتسع الشعار في menu-view */
+        #menu-view { display: flex; justify-content: flex-start; align-items: center; min-height: calc(100vh - 100px); padding-top: 40px; } 
         
         .cards-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 40px; max-width: 1000px; width: 90%; }
         @media (max-width: 1000px) { .cards-grid { grid-template-columns: repeat(2, 1fr); gap: 25px; } }
@@ -118,7 +145,7 @@
         .submit-btn { background-color: var(--primary-color); color: white; padding: 12px; border-radius: 6px; font-size: 16px; cursor: pointer; transition: background-color 0.3s; }
         .submit-btn:hover { background-color: var(--dark-pink); }
 
-        /* قائمة المواعيد (عام) */
+        /* قائمة المواعيد */
         .appointments-list { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
         .appointment-item {
             background-color: #fcfcfc; border-radius: 8px; padding: 15px; box-shadow: 0 1px 5px rgba(0, 0, 0, 0.05);
@@ -128,30 +155,16 @@
         
         .item-header { display: flex; justify-content: space-between; align-items: center; font-weight: bold; color: var(--dark-pink); font-size: 15px; }
         
-        /* تحسين مظهر التفاصيل الداخلية */
-        .item-details { 
-            color: #666; font-size: 14px; max-height: 0; overflow: hidden; opacity: 0; 
-            transition: max-height 0.4s ease-out, opacity 0.4s ease-out; 
-        }
+        /* تفاصيل الموعد */
+        .item-details { color: #666; font-size: 14px; max-height: 0; overflow: hidden; opacity: 0; transition: max-height 0.4s ease-out, opacity 0.4s ease-out; }
         .appointment-item.active .item-details { 
             max-height: 500px; opacity: 1; padding-top: 10px; border-top: 1px dashed #e0e0e0; margin-top: 10px; 
-            display: grid; 
-            grid-template-columns: 1fr 1fr; 
-            gap: 10px;
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
         }
-        .detail-row {
-            padding: 5px 0;
-            border-bottom: 1px dotted var(--light-grey);
-        }
-        .detail-row:last-child {
-            border-bottom: none;
-        }
-        .detail-row strong {
-            color: var(--primary-color);
-            font-weight: bold;
-            margin-left: 5px;
-        }
-        
+        .detail-row { padding: 5px 0; border-bottom: 1px dotted var(--light-grey); }
+        .detail-row:last-child { border-bottom: none; }
+        .detail-row strong { color: var(--primary-color); font-weight: bold; margin-left: 5px; }
+
         /* واجهة إدارة الخدمات */
         #services-management-view .service-list { margin-top: 30px; padding-top: 15px; border-top: 1px solid #eee; }
         .service-list-item {
@@ -164,19 +177,76 @@
         .remove-service-btn { background-color: var(--cancel-color); color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 13px; }
 
         /* تنسيق المودال (الواجهة المنبثقة للتعديل) */
-        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); z-index: 2000; display: none; justify-content: center; align-items: center; }
-        .modal-content { background-color: var(--card-color); border-radius: 10px; padding: 30px; width: 90%; max-width: 500px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4); }
+        .modal { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background-color: rgba(0, 0, 0, 0.6); z-index: 2000; 
+            display: none; justify-content: center; align-items: center; 
+        }
+        .modal-content { 
+            background-color: var(--card-color); border-radius: 10px; padding: 30px; 
+            width: 90%; max-width: 500px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4); 
+            text-align: right; /* لجعل محتوى المودال يبدأ من اليمين */
+        }
+        .modal-content h3 {
+            color: var(--primary-color);
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 24px;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 10px;
+        }
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end; /* الأزرار على اليسار */
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .action-btn {
+            padding: 10px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s, transform 0.2s;
+            border: none;
+        }
+        .action-btn:hover {
+            transform: translateY(-2px);
+        }
+        .modal-cancel {
+            background-color: #ccc;
+            color: var(--text-color);
+        }
+        .modal-cancel:hover {
+            background-color: #bbb;
+        }
+        .modal-save {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        .modal-save:hover {
+            background-color: var(--dark-pink);
+        }
+
     </style>
 </head>
 <body>
 
     <header class="main-header">
-        <button class="back-btn" id="backBtn">العودة للقائمة</button> <h1 id="main-title">✨ إدارة مركز تجميل ✨</h1>
-        <button class="logout-btn" id="logoutBtn">خروج</button> </header>
+        <button class="back-btn" id="backBtn">العودة للقائمة</button>
+        
+        <h1 id="main-title">✨ إدارة مركز تجميل ✨</h1>
+        
+        <button class="logout-btn" id="logoutBtn">خروج</button>
+    </header>
     
     <div id="app-content-container" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
 
         <div id="menu-view" class="view" style="display: flex;">
+            <div class="menu-logo-container">
+                <img class="menu-logo" src="555735021_824419870027163_5279202144661490549_n.jpg" alt="شعار المركز">
+                <h2>مرحباً بك في إدارة مركز التجميل</h2>
+            </div>
+            
             <div class="cards-grid">
                 <a href="#" class="card" data-view="new-appointment-view"> 
                     <span class="icon">📝</span>
@@ -262,7 +332,7 @@
                 <input type="text" id="editEmployee" placeholder="الموظف">
                 <textarea id="editNotes" placeholder="ملاحظات إضافية"></textarea>
                 
-                <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+                <div class="modal-actions">
                     <button type="button" class="action-btn modal-cancel" onclick="closeModal()">إلغاء</button>
                     <button type="submit" class="action-btn modal-save">حفظ التعديلات</button>
                 </div>
@@ -452,11 +522,10 @@
         });
 
         // ----------------------------------------------------
-        // دالة مساعدة لتنسيق رقم الهاتف (ميزة لمسات)
+        // دالة مساعدة لتنسيق رقم الهاتف
         // ----------------------------------------------------
         function formatPhoneNumber(phone) {
             if (!phone) return 'لم يسجل';
-            // إضافة مسافة كل 3 أرقام لجعل الرقم مقروءاً وأنيقاً
             return phone.replace(/(\d{3})(?=\d)/g, '$1 ');
         }
 
@@ -476,7 +545,7 @@
             }
 
             if (viewId === 'current-appointments-view') {
-                // تأكيد الفرز: الأقرب زمنياً أولاً
+                // الفرز: الأقرب زمنياً أولاً
                 const sortedData = [...appointmentsData].sort((a, b) => {
                     const dateTimeA = new Date(`${a.date} ${a.time}`);
                     const dateTimeB = new Date(`${b.date} ${b.time}`);
@@ -492,20 +561,53 @@
         }
 
         // ----------------------------------------------------
-        // منطق حجز موعد جديد
+        // منطق حجز موعد جديد (مع قيد الـ 90 دقيقة)
         // ----------------------------------------------------
         newAppointmentForm.addEventListener('submit', (e) => {
             e.preventDefault();
             
+            const newDate = document.getElementById('date').value;
+            const newTime = document.getElementById('time').value;
+            
+            // 1. تحديد وقت الموعد الجديد بالمللي ثانية
+            const newAppointmentDateTime = new Date(`${newDate} ${newTime}`).getTime();
+            
+            // 2. التحقق من صحة الوقت (يجب أن يكون في المستقبل)
+            if (newAppointmentDateTime < Date.now()) {
+                alert('⚠️ لا يمكن حجز موعد في الماضي. يرجى اختيار وقت وتاريخ مستقبلي.');
+                return;
+            }
+
+            // 3. تطبيق قيد الـ 90 دقيقة (ساعة ونصف = 90 * 60 * 1000 مللي ثانية)
+            const MIN_INTERVAL_MS = 90 * 60 * 1000; 
+
+            let allAppointments = JSON.parse(localStorage.getItem('appointments') || '[]');
+            
+            // التحقق من وجود تداخل مع المواعيد المسجلة مسبقاً
+            const hasConflict = allAppointments.some(app => {
+                const existingDateTime = new Date(`${app.date} ${app.time}`).getTime();
+                
+                // حساب الفارق المطلق بين وقت الموعد الجديد والوقت القديم
+                const timeDifference = Math.abs(newAppointmentDateTime - existingDateTime);
+                
+                // إذا كان الفارق أقل من 90 دقيقة، فهناك تداخل
+                return timeDifference < MIN_INTERVAL_MS;
+            });
+            
+            if (hasConflict) {
+                alert('❌ تعذر الحجز: يجب أن يكون هناك فاصل زمني لا يقل عن ساعة ونصف (90 دقيقة) بين المواعيد المسجلة.');
+                return;
+            }
+
+            // 4. إذا لم يكن هناك تداخل، قم بحفظ الموعد
             const newAppointment = {
                 id: Date.now().toString(), created: Date.now(), 
                 name: document.getElementById('name').value, phone: document.getElementById('phone').value,
-                date: document.getElementById('date').value, time: document.getElementById('time').value,
+                date: newDate, time: newTime,
                 service: document.getElementById('service').value, employee: document.getElementById('employee').value,
                 notes: document.getElementById('notes').value
             };
 
-            let allAppointments = JSON.parse(localStorage.getItem('appointments') || '[]');
             allAppointments.push(newAppointment);
             localStorage.setItem('appointments', JSON.stringify(allAppointments));
 
@@ -517,7 +619,7 @@
         });
 
         // ----------------------------------------------------
-        // منطق عرض المواعيد الحالية (مع لمسات جمالية)
+        // منطق عرض المواعيد الحالية
         // ----------------------------------------------------
         function renderCurrentAppointments(list) {
             currentAppointmentsList.innerHTML = '';
@@ -527,12 +629,11 @@
                 const isUpcoming = dateTime > now;
                 const statusText = isUpcoming ? 'موعد قادم' : 'موعد سابق';
                 const statusColor = isUpcoming ? '#4CAF50' : '#F44336';
-                const itemBorderColor = isUpcoming ? '#7B3E6A' : '#aaa'; // استخدام اللون الأساسي للمواعيد القادمة
-
+                const itemBorderColor = isUpcoming ? '#7B3E6A' : '#aaa'; 
 
                 const item = document.createElement('div');
                 item.className = 'appointment-item clickable';
-                item.style.borderRightColor = itemBorderColor; // لتغيير لون الشريط الجانبي
+                item.style.borderRightColor = itemBorderColor; 
 
                 
                 item.innerHTML = `
@@ -568,18 +669,36 @@
             editCancelAppointmentsList.innerHTML = '';
             list.forEach(app => {
                 const item = document.createElement('div');
-                item.className = 'appointment-item';
+                item.className = 'appointment-item clickable'; // إضافة فئة clickable
                 
                 item.innerHTML = `
-                    <div class="item-info">
-                        <h2>${app.name || 'عميل'} - ${app.service || 'غير محدد'}</h2>
-                        <p>التاريخ: ${app.date} في ${app.time}</p>
+                    <div class="item-header">
+                        <span>${app.name || 'عميل'} - ${app.service || 'غير محدد'}</span>
+                        <div style="display:flex; align-items:center; font-weight: normal;">
+                            ${app.date} في ${app.time}
+                        </div>
                     </div>
-                    <div class="item-actions">
-                        <button class="action-btn edit-btn-list" onclick="openEditModal('${app.id}')">تعديل</button>
-                        <button class="action-btn cancel-btn-list" onclick="cancelAppointment('${app.id}')">إلغاء</button>
+                    <div class="item-details">
+                        <div class="detail-row"><strong>هاتف العميل:</strong> ${formatPhoneNumber(app.phone)}</div>
+                        <div class="detail-row"><strong>الموظف المعني:</strong> ${app.employee || 'لم يحدد'}</div>
+                        <div class="detail-row" style="grid-column: 1 / span 2;"><strong>ملاحظات:</strong> ${app.notes || 'لا يوجد'}</div>
+                        <div class="item-actions" style="grid-column: 1 / span 2; display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px;">
+                            <button class="action-btn modal-save" onclick="openEditModal('${app.id}')">تعديل</button>
+                            <button class="action-btn modal-cancel" onclick="cancelAppointment('${app.id}')">إلغاء</button>
+                        </div>
                     </div>
                 `;
+                
+                item.addEventListener('click', (event) => {
+                    // منع تفعيل التعديل/الإلغاء عند النقر على الزر نفسه
+                    if (event.target.closest('.action-btn')) return; 
+
+                    document.querySelectorAll('#editCancelAppointmentsList .appointment-item.active').forEach(activeItem => {
+                        if (activeItem !== item) activeItem.classList.remove('active');
+                    });
+                    item.classList.toggle('active');
+                });
+
                 editCancelAppointmentsList.appendChild(item);
             });
         }
@@ -608,10 +727,33 @@
             e.preventDefault();
             const idToUpdate = document.getElementById('editId').value;
             const index = appointmentsData.findIndex(app => app.id === idToUpdate);
+
             if (index > -1) {
+                
+                const editDate = document.getElementById('editDate').value;
+                const editTime = document.getElementById('editTime').value;
+                const editedDateTime = new Date(`${editDate} ${editTime}`).getTime();
+                const MIN_INTERVAL_MS = 90 * 60 * 1000; // 90 دقيقة = 1.5 ساعة
+                
+                // تحقق من عدم تداخل الموعد المعدل مع أي موعد آخر (باستثناء الموعد نفسه)
+                const hasConflict = appointmentsData.some(app => {
+                    if (app.id === idToUpdate) return false; // تجاهل الموعد الذي يتم تعديله
+                    
+                    const existingDateTime = new Date(`${app.date} ${app.time}`).getTime();
+                    const timeDifference = Math.abs(editedDateTime - existingDateTime);
+                    
+                    return timeDifference < MIN_INTERVAL_MS;
+                });
+                
+                if (hasConflict) {
+                    alert('❌ تعذر تعديل الموعد: يجب أن يكون هناك فاصل زمني لا يقل عن ساعة ونصف (90 دقيقة) بين المواعيد المسجلة.');
+                    return;
+                }
+                
+                // حفظ التعديلات
                 appointmentsData[index] = { ...appointmentsData[index], 
                     name: document.getElementById('editName').value, phone: document.getElementById('editPhone').value,
-                    date: document.getElementById('editDate').value, time: document.getElementById('editTime').value,
+                    date: editDate, time: editTime,
                     service: document.getElementById('editService').value, employee: document.getElementById('editEmployee').value,
                     notes: document.getElementById('editNotes').value,
                 };
