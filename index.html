@@ -26,6 +26,7 @@
             --status-past: #9E9E9E;     /* Grey for past appointments */
             --status-completed: #28a745; /* Green for completed */
             --status-cancelled: #dc3545; /* Red for cancelled */
+            --delete-color: #cc0000; /* لون جديد لزر الحذف */
         }
 
         body {
@@ -208,6 +209,22 @@
         .appointment-item[data-status="موعد سابق"] { border-right-color: var(--status-past); }
         .appointment-item[data-status="منجز"] { border-right-color: var(--status-completed); }
         .appointment-item[data-status="ملغى"] { border-right-color: var(--status-cancelled); }
+        
+        /* تنسيق زر الحذف في واجهة التعديل والإلغاء */
+        .delete-btn {
+            background-color: var(--delete-color);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            border: none;
+            font-weight: bold;
+        }
+        .delete-btn:hover {
+            background-color: #a30000;
+        }
 
 
         /* واجهة إدارة الخدمات */
@@ -272,6 +289,27 @@
             background-color: var(--dark-pink);
         }
 
+        /* تنسيقات جديدة لعناوين اليوم في قائمة التعديل والإلغاء */
+        .day-header {
+            width: 100%;
+            background-color: var(--primary-color); /* لون أساسي */
+            color: white;
+            padding: 12px 20px;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            font-size: 1.2em;
+            font-weight: bold;
+            text-align: right;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .day-header.today {
+            background-color: var(--dark-pink); /* لون مختلف لليوم الحالي */
+        }
+        .day-header.past-day {
+            background-color: var(--status-past); /* لون رمادي للأيام السابقة */
+        }
+
     </style>
 </head>
 <body>
@@ -298,7 +336,7 @@
                 </a>
                 <a href="#" class="card" data-view="current-appointments-view">
                     <span class="icon">🗓️</span>
-                    <h2>مواعيد الحجوزات</h2>
+                    <h2>مواعيد اليوم</h2>
                 </a>
                 <a href="#" class="card" data-view="edit-cancel-view">
                     <span class="icon">⚙️</span>
@@ -323,6 +361,7 @@
                     </div>
                     <select id="service" required>
                         </select>
+                    <input type="number" id="totalCost" placeholder="التكلفة الكلية للموعد (أرقام فقط)" min="0" required>
                     <input type="text" id="employee" placeholder="اسم الموظف المعني (اختياري)">
                     <textarea id="notes" placeholder="ملاحظات إضافية (اختياري)"></textarea>
                     
@@ -334,14 +373,14 @@
 
         <div id="current-appointments-view" class="view">
              <div class="appointments-page">
-                <h2>🗓️ مواعيد الحجوزات القادمة والمنجزة</h2>
+                <h2>🗓️ مواعيد اليوم (القادمة والمنجزة)</h2>
                 <div class="appointments-list" id="currentAppointmentsList"></div>
             </div>
         </div>
 
         <div id="edit-cancel-view" class="view">
              <div class="appointments-page">
-                <h2>⚙️ تعديل وإلغاء المواعيد (تغيير الحالة)</h2>
+                <h2>⚙️ تعديل وإلغاء وحذف جميع المواعيد</h2>
                 <div class="appointments-list" id="editCancelAppointmentsList"></div>
             </div>
         </div>
@@ -373,6 +412,7 @@
                 <input type="time" id="editTime" required>
                 <select id="editService" required>
                     </select>
+                <input type="number" id="editTotalCost" placeholder="التكلفة الكلية للموعد" min="0" required>
                 <input type="text" id="editEmployee" placeholder="الموظف">
                 <textarea id="editNotes" placeholder="ملاحظات إضافية"></textarea>
                 
@@ -392,7 +432,8 @@
     </div>
 
 
-    <script type="module" src="firebase-sync.js"></script> <script>
+    <script type="module" src="firebase-sync.js"></script> 
+    <script>
         // ----------------------------------------------------
         // الإعدادات والمتغيرات الأساسية (باستخدام localStorage)
         // ----------------------------------------------------
@@ -404,8 +445,8 @@
         const viewTitles = {
             'menu-view': '✨ إدارة مركز تجميل ✨',
             'new-appointment-view': '📝 تسجيل موعد جديد',
-            'current-appointments-view': '🗓️ مواعيد الحجوزات القادمة',
-            'edit-cancel-view': '⚙️ تعديل وإلغاء المواعيد',
+            'current-appointments-view': '🗓️ مواعيد اليوم',
+            'edit-cancel-view': '⚙️ تعديل وإلغاء وحذف المواعيد',
             'services-management-view': '💇‍♀️ إدارة الخدمات'
         };
 
@@ -433,8 +474,8 @@
 
         function saveServices(services) {
             localStorage.setItem(SERVICES_KEY, JSON.stringify(services));
-            populateServiceSelectors(); // تحديث قوائم الخدمات بعد الحفظ
-            renderServiceManagement(); // تحديث قائمة إدارة الخدمات
+            populateServiceSelectors(); 
+            renderServiceManagement(); 
             // بعد الحفظ المحلي، ادفع التغيير إلى Firebase
             if (window.firebaseSync && typeof window.firebaseSync.pushServicesToFirebase === 'function') {
                 window.firebaseSync.pushServicesToFirebase();
@@ -446,18 +487,16 @@
             const serviceSelect = document.getElementById('service');
             const editServiceSelect = document.getElementById('editService');
             
-            // مسح الخيارات الحالية
             serviceSelect.innerHTML = '<option value="" disabled selected>اختر الخدمة المطلوبة</option>';
             editServiceSelect.innerHTML = '';
             
-            // إضافة الخيارات الجديدة
             services.forEach(service => {
                 const option = document.createElement('option');
                 option.value = service;
                 option.textContent = service;
                 
                 serviceSelect.appendChild(option.cloneNode(true));
-                editServiceSelect.appendChild(option.cloneNode(true)); // استخدم cloneNode(true) لتجنب نقل العنصر
+                editServiceSelect.appendChild(option.cloneNode(true));
             });
         }
         
@@ -524,7 +563,7 @@
             });
 
             const activeView = document.getElementById(viewId);
-            if (activeView) activeView.style.display = 'flex'; // تأكد من أنها 'flex' لتظهر بشكل صحيح
+            if (activeView) activeView.style.display = 'flex'; 
 
             mainTitle.textContent = viewTitles[viewId] || 'إدارة مركز تجميل';
             
@@ -566,7 +605,7 @@
                 window.location.href = 'login.html'; 
                 return;
             } 
-            showView('menu-view'); // عرض القائمة الرئيسية مباشرة بعد التأكد من تسجيل الدخول
+            showView('menu-view'); 
         }
 
         logoutBtn.addEventListener('click', () => {
@@ -578,9 +617,6 @@
         // دوال مساعدة
         // ----------------------------------------------------
         function generateUniqueId() {
-            // يستخدم الآن Firebase Realtime Database IDs (push key) للحجوزات الجديدة
-            // لذا هذه الدالة قد لا تكون ضرورية إذا كنا نعتمد على Firebase لإنشاء الـ IDs
-            // ولكننا سنحتفظ بها كاحتياط أو للاستخدام المحلي قبل الدفع لـ Firebase
             return Date.now().toString(36) + Math.random().toString(36).substr(2);
         }
 
@@ -609,11 +645,17 @@
             const m = minutes.padStart(2, '0');
             return `${h}:${m} ${period}`;
         }
+        
+        // دالة للمقارنة بين التواريخ/الأوقات
+        function compareAppointmentsByTime(a, b) {
+            const dateTimeA = new Date(`${a.date} ${a.time}`).getTime();
+            const dateTimeB = new Date(`${b.date} ${b.time}`).getTime();
+            return dateTimeA - dateTimeB; 
+        }
 
         // ----------------------------------------------------
-        // تحميل وحفظ المواعيد (باستخدام localStorage)
+        // تحميل وحفظ المواعيد (باستخدام localStorage ومزامنة Firebase)
         // ----------------------------------------------------
-        // هذه الدوال ستقوم بالقراءة والكتابة من localStorage الذي يتم تحديثه بواسطة firebase-sync.js
         function getAppointments() {
             const appointmentsJson = localStorage.getItem(APPOINTMENTS_KEY);
             return appointmentsJson ? JSON.parse(appointmentsJson) : [];
@@ -621,51 +663,60 @@
 
         function saveAppointments(appointments) {
             localStorage.setItem(APPOINTMENTS_KEY, JSON.stringify(appointments));
-            // بعد الحفظ المحلي، ادفع التغيير إلى Firebase
             if (window.firebaseSync && typeof window.firebaseSync.pushAppointmentsToFirebase === 'function') {
                 window.firebaseSync.pushAppointmentsToFirebase();
+            }
+        }
+        
+        window.deleteAppointment = function(id) {
+            if (confirm("⚠️ هل أنت متأكد من حذف هذا الموعد نهائياً؟ لا يمكن التراجع عن هذا الإجراء.")) {
+                let appointments = getAppointments();
+                appointments = appointments.filter(a => a.id !== id);
+                
+                saveAppointments(appointments);
+                
+                alert('✅ تم حذف الموعد نهائياً.');
+                
+                loadDataAndRender('edit-cancel-view'); 
+                loadDataAndRender('current-appointments-view');
             }
         }
 
         function loadDataAndRender(viewId) {
             const appointments = getAppointments();
 
+            const noDataMessage = '<p style="text-align: center; margin-top: 50px; color: var(--primary-color); font-weight: bold;">لا توجد مواعيد للعرض حالياً.</p>';
+            
             if (appointments.length === 0) {
-                const noDataMessage = '<p style="text-align: center; margin-top: 50px; color: var(--primary-color); font-weight: bold;">لا توجد مواعيد حالية محفوظة.</p>';
                 currentAppointmentsList.innerHTML = noDataMessage;
                 editCancelAppointmentsList.innerHTML = noDataMessage;
                 return;
             }
 
             if (viewId === 'current-appointments-view') {
-                const now = new Date();
-                const sortedData = [...appointments].sort((a, b) => {
-                    const dateTimeA = new Date(`${a.date} ${a.time}`);
-                    const dateTimeB = new Date(`${b.date} ${b.time}`);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0); // لإزالة الوقت ومقارنة التاريخ فقط
 
-                    // ترتيب المواعيد: "قادم" أولاً (والمواعيد المستقبلية داخل القادم)، ثم "منجز"، ثم "ملغى"
-                    // ضمن كل حالة، يتم الترتيب حسب التاريخ والوقت
-                    if (a.status === 'قادم' && b.status !== 'قادم') return -1;
-                    if (b.status === 'قادم' && a.status !== 'قادم') return 1;
-
-                    if (a.status === 'منجز' && b.status !== 'منجز') return -1; // المنجز قبل الملغى
-                    if (b.status === 'منجز' && a.status !== 'منجز') return 1;
-                    
-                    if (a.status === 'ملغى' && b.status !== 'ملغى') return 1; // الملغى آخر شيء
-                    if (b.status === 'ملغى' && a.status !== 'ملغى') return -1;
-                    
-                    return dateTimeA - dateTimeB; 
+                const todayAppointments = appointments.filter(app => {
+                    const appDate = new Date(app.date);
+                    appDate.setHours(0, 0, 0, 0); // لإزالة الوقت ومقارنة التاريخ فقط
+                    return appDate.getTime() === today.getTime();
                 });
+                
+                const sortedData = todayAppointments.sort(compareAppointmentsByTime);
+
                 renderCurrentAppointmentsListHtml(sortedData);
 
             } else if (viewId === 'edit-cancel-view') {
-                // هنا يجب أن تظهر جميع المواعيد لتمكين التعديل والإلغاء
-                const sortedData = [...appointments].sort((a, b) => {
-                    // الترتيب حسب تاريخ ووقت الموعد الأحدث أولاً في صفحة التعديل/الإلغاء
+                const allAppointments = [...appointments];
+                // الترتيب الأولي حسب تاريخ ووقت الإنشاء ليكون الأكثر حداثة في البداية عند عرض كل شيء
+                // أو يمكن ترتيبها حسب تاريخ الموعد نفسه (الخيار الحالي هو الأفضل للتعديل)
+                const sortedData = allAppointments.sort((a, b) => {
                     const dateTimeA = new Date(`${a.date} ${a.time}`);
                     const dateTimeB = new Date(`${b.date} ${b.time}`);
-                    return dateTimeB - dateTimeA; 
+                    return dateTimeB - dateTimeA; // الأحدث أولاً
                 });
+
                 renderEditCancelAppointmentsListHtml(sortedData);
             }
         }
@@ -674,7 +725,6 @@
         // تحديث الواجهات بعد المزامنة من Firebase (حدث مخصص)
         // ----------------------------------------------------
         window.addEventListener('localStorageUpdated', () => {
-            // أعد عرض الواجهة النشطة حالياً لتحديث البيانات
             const currentViewId = getCurrentViewId();
             if (currentViewId !== 'menu-view') { 
                 loadDataAndRender(currentViewId);
@@ -689,7 +739,6 @@
         function getCurrentViewId() {
             for (let id of ALL_VIEWS) {
                 const element = document.getElementById(id);
-                // تأكد أن العنصر موجود وأن style.display ليس 'none'
                 if (element && window.getComputedStyle(element).display !== 'none') {
                     return id;
                 }
@@ -705,6 +754,7 @@
             
             const newDate = document.getElementById('date').value;
             const newTime = document.getElementById('time').value;
+            const newTotalCost = document.getElementById('totalCost').value; 
             
             const newAppointmentDateTime = new Date(`${newDate} ${newTime}`).getTime();
             
@@ -731,56 +781,50 @@
             }
 
             const newAppointment = {
-                id: generateUniqueId(), // ID مؤقت إذا كان Firebase هو من سينشئ الـ ID الفعلي
+                id: generateUniqueId(), 
                 created: Date.now(), 
                 name: document.getElementById('name').value, 
                 phone: document.getElementById('phone').value,
                 date: newDate, 
                 time: newTime,
                 service: document.getElementById('service').value, 
+                totalCost: parseFloat(newTotalCost) || 0, 
                 employee: document.getElementById('employee').value,
                 notes: document.getElementById('notes').value,
                 status: 'قادم' 
             };
 
             appointments.push(newAppointment);
-            saveAppointments(appointments); // تتضمن الآن الدفع إلى Firebase
+            saveAppointments(appointments); 
 
             newAppointmentForm.reset();
             saveResultDiv.textContent = '✅ تم تسجيل الموعد بنجاح!';
             saveResultDiv.style.display = 'block';
 
             setTimeout(() => { saveResultDiv.style.display = 'none'; }, 3000);
-            loadDataAndRender('current-appointments-view'); // تحديث العرض
+            loadDataAndRender('current-appointments-view'); 
         });
 
         // ----------------------------------------------------
-        // منطق عرض المواعيد الحالية (لواجهة 'مواعيد الحجوزات')
+        // منطق عرض المواعيد الحالية (لواجهة 'مواعيد اليوم')
         // ----------------------------------------------------
         function renderCurrentAppointmentsListHtml(list) {
             currentAppointmentsList.innerHTML = '';
-
-            const now = new Date();
-            // هنا لعرض المواعيد "القادمة" (وقت وتاريخ مستقبلي) والمنجزة والملغاة.
-            // المواعيد "القادمة" التي مر وقتها سيتم عرضها كـ "موعد سابق"
-            const filteredAppointments = list.filter(app => {
-                 // عرض الكل في هذه الواجهة مع تحديث الحالة بشكل ديناميكي
-                return true; 
-            });
+            const noDataMessage = '<p style="text-align: center; margin-top: 50px; color: var(--primary-color); font-weight: bold;">لا توجد مواعيد مُجدولة لليوم.</p>';
             
-             if (filteredAppointments.length === 0) {
-                currentAppointmentsList.innerHTML = '<p style="text-align: center; margin-top: 50px; color: var(--primary-color); font-weight: bold;">لا توجد مواعيد للعرض حالياً.</p>';
+             if (list.length === 0) {
+                currentAppointmentsList.innerHTML = noDataMessage;
                 return;
             }
 
-            filteredAppointments.forEach(app => {
+            const now = new Date();
+            list.forEach(app => {
                 const appDateTime = new Date(`${app.date} ${app.time}`);
                 let statusDisplay = app.status;
                 if (app.status === 'قادم' && appDateTime < now) {
                     statusDisplay = 'موعد سابق'; 
                 }
                 const statusInfo = getStatusClassAndColor(statusDisplay);
-
                 const formattedTime = formatTime12Hour(app.time);
 
                 const item = document.createElement('div');
@@ -798,11 +842,12 @@
                     </div>
                     <div class="item-details">
                         <div class="detail-row"><strong>الخدمة:</strong> ${app.service}</div>
+                        <div class="detail-row"><strong>التكلفة:</strong> ${app.totalCost ? app.totalCost.toLocaleString('ar-IQ') : 'لم تحدد'} د.ع.</div>
                         <div class="detail-row"><strong>الموظف:</strong> ${app.employee || 'غير محدد'}</div>
                         <div class="detail-row"><strong>الهاتف:</strong> <span class="phone-number">${formatPhoneNumber(app.phone)}</span></div>
                         <div class="detail-row"><strong>الملاحظات:</strong> ${app.notes || 'لا يوجد'}</div>
                         <div style="grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px; border-top: 1px dashed #eee; padding-top: 10px;">
-                            <button class="action-btn" style="background-color: var(--edit-color); color: white; display: block;" onclick="event.stopPropagation(); openEditModal('${app.id}')">تعديل الموعد</button>
+                            <button class="action-btn" style="background-color: var(--edit-color); color: white; display: block;" onclick="event.stopPropagation(); openEditModal('${app.id}')">تعديل/تغيير الحالة</button>
                         </div>
                     </div>
                 `;
@@ -812,7 +857,7 @@
 
 
         // ----------------------------------------------------
-        // منطق عرض وتعديل المواعيد (لواجهة 'تعديل وإلغاء')
+        // منطق عرض وتعديل المواعيد (لواجهة 'تعديل وإلغاء') - **تم تعديل هذه الدالة**
         // ----------------------------------------------------
         function renderEditCancelAppointmentsListHtml(list) {
             editCancelAppointmentsList.innerHTML = '';
@@ -822,42 +867,78 @@
                 return;
             }
 
+            // تجميع المواعيد حسب التاريخ
+            const appointmentsByDate = {};
             list.forEach(app => {
-                let statusDisplay = app.status;
-                const appDateTime = new Date(`${app.date} ${app.time}`);
-                if (app.status === 'قادم' && appDateTime < new Date()) {
-                    statusDisplay = 'موعد سابق'; 
+                if (!appointmentsByDate[app.date]) {
+                    appointmentsByDate[app.date] = [];
                 }
+                appointmentsByDate[app.date].push(app);
+            });
 
-                const statusInfo = getStatusClassAndColor(statusDisplay);
-                const formattedTime = formatTime12Hour(app.time);
+            // الحصول على التواريخ وترتيبها (الأحدث أولاً)
+            const sortedDates = Object.keys(appointmentsByDate).sort((dateA, dateB) => {
+                return new Date(dateB) - new Date(dateA); // الأحدث أولاً
+            });
 
-                const item = document.createElement('div');
-                item.className = 'appointment-item'; 
-                item.setAttribute('data-id', app.id);
-                item.setAttribute('data-status', statusDisplay); 
-                // إظهار التفاصيل عند الضغط على العنصر
-                item.onclick = (e) => toggleAppointmentDetails(e.currentTarget); 
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            const arabicDays = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 
-                item.innerHTML = `
-                    <div class="item-header">
-                        <span>${app.name} (${app.service})</span>
-                        <div style="display:flex; align-items:center;">
-                            <span class="status-badge ${statusInfo.class}" style="margin-left: 10px;">${statusDisplay}</span>
-                            <span>${app.date} - ${formattedTime}</span>
+
+            sortedDates.forEach(date => {
+                const dateObj = new Date(date);
+                const dayName = arabicDays[dateObj.getDay()];
+                const isToday = (dateObj.setHours(0,0,0,0) === today.getTime());
+                const isPastDay = (dateObj.getTime() < today.getTime());
+
+                // عنوان اليوم
+                const dayHeader = document.createElement('div');
+                dayHeader.className = `day-header ${isToday ? 'today' : (isPastDay ? 'past-day' : '')}`;
+                dayHeader.textContent = `${dayName}, ${date}`; // مثال: الأحد, 2023-10-27
+                editCancelAppointmentsList.appendChild(dayHeader);
+
+                // فرز المواعيد داخل كل يوم حسب الوقت (الأقرب أولاً)
+                const dayAppointments = appointmentsByDate[date].sort(compareAppointmentsByTime);
+
+                dayAppointments.forEach(app => {
+                    let statusDisplay = app.status;
+                    const appDateTime = new Date(`${app.date} ${app.time}`);
+                    if (app.status === 'قادم' && appDateTime < new Date()) {
+                        statusDisplay = 'موعد سابق'; 
+                    }
+
+                    const statusInfo = getStatusClassAndColor(statusDisplay);
+                    const formattedTime = formatTime12Hour(app.time);
+
+                    const item = document.createElement('div');
+                    item.className = 'appointment-item'; 
+                    item.setAttribute('data-id', app.id);
+                    item.setAttribute('data-status', statusDisplay); 
+                    item.onclick = (e) => toggleAppointmentDetails(e.currentTarget); 
+
+                    item.innerHTML = `
+                        <div class="item-header">
+                            <span>${app.name} (${app.service})</span>
+                            <div style="display:flex; align-items:center;">
+                                <span class="status-badge ${statusInfo.class}" style="margin-left: 10px;">${statusDisplay}</span>
+                                <span>${formattedTime}</span>
+                            </div>
                         </div>
-                    </div>
-                    <div class="item-details">
-                        <div class="detail-row"><strong>الهاتف:</strong> <span class="phone-number">${formatPhoneNumber(app.phone)}</span></div>
-                        <div class="detail-row"><strong>الخدمة:</strong> ${app.service}</div>
-                        <div class="detail-row"><strong>الموظف:</strong> ${app.employee || 'غير محدد'}</div>
-                        <div class="detail-row"><strong>الملاحظات:</strong> ${app.notes || 'لا يوجد'}</div>
-                        <div style="grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px; border-top: 1px dashed #eee; padding-top: 10px;">
-                            <button class="action-btn" style="background-color: var(--edit-color); color: white;" onclick="event.stopPropagation(); openEditModal('${app.id}')">تعديل/تغيير الحالة</button>
+                        <div class="item-details">
+                            <div class="detail-row"><strong>الهاتف:</strong> <span class="phone-number">${formatPhoneNumber(app.phone)}</span></div>
+                            <div class="detail-row"><strong>الخدمة:</strong> ${app.service}</div>
+                            <div class="detail-row"><strong>التكلفة:</strong> ${app.totalCost ? app.totalCost.toLocaleString('ar-IQ') : 'لم تحدد'} د.ع.</div>
+                            <div class="detail-row"><strong>الموظف:</strong> ${app.employee || 'غير محدد'}</div>
+                            <div class="detail-row"><strong>الملاحظات:</strong> ${app.notes || 'لا يوجد'}</div>
+                            <div style="grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px; border-top: 1px dashed #eee; padding-top: 10px;">
+                                <button class="action-btn" style="background-color: var(--edit-color); color: white;" onclick="event.stopPropagation(); openEditModal('${app.id}')">تعديل/الحالة</button>
+                                <button class="delete-btn" onclick="event.stopPropagation(); deleteAppointment('${app.id}')">حذف نهائي</button>
+                            </div>
                         </div>
-                    </div>
-                `;
-                editCancelAppointmentsList.appendChild(item);
+                    `;
+                    editCancelAppointmentsList.appendChild(item);
+                });
             });
         }
         
@@ -878,16 +959,14 @@
             document.getElementById('editService').value = app.service;
             document.getElementById('editEmployee').value = app.employee;
             document.getElementById('editNotes').value = app.notes;
-            
-            // تأكد أن حالة الموعد تظهر بشكل صحيح في الـ select
+            document.getElementById('editTotalCost').value = app.totalCost || ''; 
+
             const editStatusSelect = document.getElementById('editStatus');
             const options = Array.from(editStatusSelect.options);
             const statusExists = options.some(option => option.value === app.status);
             if (statusExists) {
                 editStatusSelect.value = app.status;
             } else {
-                // إذا كانت الحالة غير موجودة في الخيارات (مثل "موعد سابق" الذي هو حالة ديناميكية)، 
-                // عيّنها إلى "قادم" كافتراضي أو أول خيار متاح.
                 editStatusSelect.value = 'قادم'; 
             }
 
@@ -905,18 +984,17 @@
             const newDate = document.getElementById('editDate').value;
             const newTime = document.getElementById('editTime').value;
             const newStatus = document.getElementById('editStatus').value;
+            const newTotalCost = document.getElementById('editTotalCost').value; 
             
             let appointments = getAppointments();
             const appIndex = appointments.findIndex(a => a.id === id);
             if (appIndex === -1) return;
 
-            // التحقق من التضارب فقط إذا كانت الحالة "قادم"
             if (newStatus === 'قادم') {
                 const editedDateTime = new Date(`${newDate} ${newTime}`).getTime();
                 const MIN_INTERVAL_MS = 90 * 60 * 1000; 
 
                 const hasConflict = appointments.some((app, index) => {
-                    // تجاهل الموعد الذي يتم تعديله نفسه
                     if (index === appIndex || app.status === 'منجز' || app.status === 'ملغى') return false; 
                     
                     const existingStartDateTime = new Date(`${app.date} ${app.time}`).getTime();
@@ -924,27 +1002,22 @@
                     
                     if (timeDifference < MIN_INTERVAL_MS) {
                         alert('❌ تعذر حفظ التعديل: يجب أن يكون هناك فاصل زمني لا يقل عن ساعة ونصف (90 دقيقة) بين بداية المواعيد القادمة.');
-                        return true; // للإشارة إلى وجود تضارب وإيقاف عملية الحفظ
+                        return true; 
                     }
                     return false;
                 });
 
                 if (hasConflict) {
-                    return; // إيقاف تنفيذ الدالة إذا كان هناك تضارب
+                    return; 
                 }
-            }
-            
-            // تحقق من أن الموعد القادم ليس في الماضي
-            if (newStatus === 'قادم') {
-                const updatedDateTime = new Date(`${newDate} ${newTime}`).getTime();
-                if (updatedDateTime < Date.now()) {
+                
+                if (new Date(`${newDate} ${newTime}`).getTime() < Date.now()) {
                     alert('⚠️ لا يمكن تعيين موعد قادم في الماضي. يرجى اختيار وقت وتاريخ مستقبلي.');
                     return;
                 }
             }
 
 
-            // تحديث بيانات الموعد
             appointments[appIndex] = {
                 ...appointments[appIndex],
                 name: document.getElementById('editName').value, 
@@ -952,15 +1025,16 @@
                 date: newDate, 
                 time: newTime,
                 service: document.getElementById('editService').value, 
+                totalCost: parseFloat(newTotalCost) || 0, 
                 employee: document.getElementById('editEmployee').value,
                 notes: document.getElementById('editNotes').value,
                 status: newStatus 
             };
             
-            saveAppointments(appointments); // تتضمن الآن الدفع إلى Firebase
+            saveAppointments(appointments); 
             closeModal();
             alert('✅ تم حفظ التعديلات بنجاح!');
-            // بعد الحفظ، أعد عرض كلتا القائمتين لضمان التحديث الكامل
+            
             loadDataAndRender('current-appointments-view');
             loadDataAndRender('edit-cancel-view');
         });
