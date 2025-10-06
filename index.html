@@ -392,7 +392,7 @@
     </div>
 
 
-    <script>
+    <script type="module" src="firebase-sync.js"></script> <script>
         // ----------------------------------------------------
         // الإعدادات والمتغيرات الأساسية (باستخدام localStorage)
         // ----------------------------------------------------
@@ -436,7 +436,7 @@
             populateServiceSelectors(); // تحديث قوائم الخدمات بعد الحفظ
             renderServiceManagement(); // تحديث قائمة إدارة الخدمات
             // بعد الحفظ المحلي، ادفع التغيير إلى Firebase
-            if (window.firebaseSync && window.firebaseSync.pushServicesToFirebase) {
+            if (window.firebaseSync && typeof window.firebaseSync.pushServicesToFirebase === 'function') {
                 window.firebaseSync.pushServicesToFirebase();
             }
         }
@@ -457,7 +457,7 @@
                 option.textContent = service;
                 
                 serviceSelect.appendChild(option.cloneNode(true));
-                editServiceSelect.appendChild(option);
+                editServiceSelect.appendChild(option.cloneNode(true)); // استخدم cloneNode(true) لتجنب نقل العنصر
             });
         }
         
@@ -578,6 +578,9 @@
         // دوال مساعدة
         // ----------------------------------------------------
         function generateUniqueId() {
+            // يستخدم الآن Firebase Realtime Database IDs (push key) للحجوزات الجديدة
+            // لذا هذه الدالة قد لا تكون ضرورية إذا كنا نعتمد على Firebase لإنشاء الـ IDs
+            // ولكننا سنحتفظ بها كاحتياط أو للاستخدام المحلي قبل الدفع لـ Firebase
             return Date.now().toString(36) + Math.random().toString(36).substr(2);
         }
 
@@ -610,6 +613,7 @@
         // ----------------------------------------------------
         // تحميل وحفظ المواعيد (باستخدام localStorage)
         // ----------------------------------------------------
+        // هذه الدوال ستقوم بالقراءة والكتابة من localStorage الذي يتم تحديثه بواسطة firebase-sync.js
         function getAppointments() {
             const appointmentsJson = localStorage.getItem(APPOINTMENTS_KEY);
             return appointmentsJson ? JSON.parse(appointmentsJson) : [];
@@ -618,7 +622,7 @@
         function saveAppointments(appointments) {
             localStorage.setItem(APPOINTMENTS_KEY, JSON.stringify(appointments));
             // بعد الحفظ المحلي، ادفع التغيير إلى Firebase
-            if (window.firebaseSync && window.firebaseSync.pushAppointmentsToFirebase) {
+            if (window.firebaseSync && typeof window.firebaseSync.pushAppointmentsToFirebase === 'function') {
                 window.firebaseSync.pushAppointmentsToFirebase();
             }
         }
@@ -639,13 +643,15 @@
                     const dateTimeA = new Date(`${a.date} ${a.time}`);
                     const dateTimeB = new Date(`${b.date} ${b.time}`);
 
+                    // ترتيب المواعيد: "قادم" أولاً (والمواعيد المستقبلية داخل القادم)، ثم "منجز"، ثم "ملغى"
+                    // ضمن كل حالة، يتم الترتيب حسب التاريخ والوقت
                     if (a.status === 'قادم' && b.status !== 'قادم') return -1;
                     if (b.status === 'قادم' && a.status !== 'قادم') return 1;
 
-                    if (a.status === 'منجز' && b.status !== 'منجز') return 1;
-                    if (b.status === 'منجز' && a.status !== 'منجز') return -1;
-
-                    if (a.status === 'ملغى' && b.status !== 'ملغى') return 1;
+                    if (a.status === 'منجز' && b.status !== 'منجز') return -1; // المنجز قبل الملغى
+                    if (b.status === 'منجز' && a.status !== 'منجز') return 1;
+                    
+                    if (a.status === 'ملغى' && b.status !== 'ملغى') return 1; // الملغى آخر شيء
                     if (b.status === 'ملغى' && a.status !== 'ملغى') return -1;
                     
                     return dateTimeA - dateTimeB; 
@@ -653,11 +659,12 @@
                 renderCurrentAppointmentsListHtml(sortedData);
 
             } else if (viewId === 'edit-cancel-view') {
-                // هذا هو الجزء الذي كان يسبب المشكلة
-                // يجب عرض جميع المواعيد هنا بغض النظر عن حالتها الأولية
+                // هنا يجب أن تظهر جميع المواعيد لتمكين التعديل والإلغاء
                 const sortedData = [...appointments].sort((a, b) => {
-                    // ترتيب عكسي حسب تاريخ الإنشاء لظهور الأحدث أولاً
-                    return b.created - a.created; 
+                    // الترتيب حسب تاريخ ووقت الموعد الأحدث أولاً في صفحة التعديل/الإلغاء
+                    const dateTimeA = new Date(`${a.date} ${a.time}`);
+                    const dateTimeB = new Date(`${b.date} ${b.time}`);
+                    return dateTimeB - dateTimeA; 
                 });
                 renderEditCancelAppointmentsListHtml(sortedData);
             }
@@ -667,7 +674,7 @@
         // تحديث الواجهات بعد المزامنة من Firebase (حدث مخصص)
         // ----------------------------------------------------
         window.addEventListener('localStorageUpdated', () => {
-            // أعد عرض الواجهة النشطة حالياً
+            // أعد عرض الواجهة النشطة حالياً لتحديث البيانات
             const currentViewId = getCurrentViewId();
             if (currentViewId !== 'menu-view') { 
                 loadDataAndRender(currentViewId);
@@ -682,7 +689,8 @@
         function getCurrentViewId() {
             for (let id of ALL_VIEWS) {
                 const element = document.getElementById(id);
-                if (element && getComputedStyle(element).display === 'flex') {
+                // تأكد أن العنصر موجود وأن style.display ليس 'none'
+                if (element && window.getComputedStyle(element).display !== 'none') {
                     return id;
                 }
             }
@@ -723,7 +731,7 @@
             }
 
             const newAppointment = {
-                id: generateUniqueId(),
+                id: generateUniqueId(), // ID مؤقت إذا كان Firebase هو من سينشئ الـ ID الفعلي
                 created: Date.now(), 
                 name: document.getElementById('name').value, 
                 phone: document.getElementById('phone').value,
@@ -753,12 +761,19 @@
             currentAppointmentsList.innerHTML = '';
 
             const now = new Date();
+            // هنا لعرض المواعيد "القادمة" (وقت وتاريخ مستقبلي) والمنجزة والملغاة.
+            // المواعيد "القادمة" التي مر وقتها سيتم عرضها كـ "موعد سابق"
             const filteredAppointments = list.filter(app => {
-                const appDateTime = new Date(`${app.date} ${app.time}`);
-                return (app.status === 'قادم' && appDateTime >= now) || app.status === 'منجز' || app.status === 'ملغى';
+                 // عرض الكل في هذه الواجهة مع تحديث الحالة بشكل ديناميكي
+                return true; 
             });
             
-             filteredAppointments.forEach(app => {
+             if (filteredAppointments.length === 0) {
+                currentAppointmentsList.innerHTML = '<p style="text-align: center; margin-top: 50px; color: var(--primary-color); font-weight: bold;">لا توجد مواعيد للعرض حالياً.</p>';
+                return;
+            }
+
+            filteredAppointments.forEach(app => {
                 const appDateTime = new Date(`${app.date} ${app.time}`);
                 let statusDisplay = app.status;
                 if (app.status === 'قادم' && appDateTime < now) {
@@ -793,10 +808,6 @@
                 `;
                 currentAppointmentsList.appendChild(item);
             });
-
-            if (filteredAppointments.length === 0) {
-                currentAppointmentsList.innerHTML = '<p style="text-align: center; margin-top: 50px; color: var(--primary-color); font-weight: bold;">لا توجد مواعيد للعرض حالياً.</p>';
-            }
         }
 
 
@@ -867,7 +878,18 @@
             document.getElementById('editService').value = app.service;
             document.getElementById('editEmployee').value = app.employee;
             document.getElementById('editNotes').value = app.notes;
-            document.getElementById('editStatus').value = app.status;
+            
+            // تأكد أن حالة الموعد تظهر بشكل صحيح في الـ select
+            const editStatusSelect = document.getElementById('editStatus');
+            const options = Array.from(editStatusSelect.options);
+            const statusExists = options.some(option => option.value === app.status);
+            if (statusExists) {
+                editStatusSelect.value = app.status;
+            } else {
+                // إذا كانت الحالة غير موجودة في الخيارات (مثل "موعد سابق" الذي هو حالة ديناميكية)، 
+                // عيّنها إلى "قادم" كافتراضي أو أول خيار متاح.
+                editStatusSelect.value = 'قادم'; 
+            }
 
             editModal.style.display = 'flex';
         }
@@ -901,16 +923,26 @@
                     const timeDifference = Math.abs(editedDateTime - existingStartDateTime);
                     
                     if (timeDifference < MIN_INTERVAL_MS) {
-                        return true;
+                        alert('❌ تعذر حفظ التعديل: يجب أن يكون هناك فاصل زمني لا يقل عن ساعة ونصف (90 دقيقة) بين بداية المواعيد القادمة.');
+                        return true; // للإشارة إلى وجود تضارب وإيقاف عملية الحفظ
                     }
                     return false;
                 });
 
                 if (hasConflict) {
-                    alert('❌ تعذر حفظ التعديل: يجب أن يكون هناك فاصل زمني لا يقل عن ساعة ونصف (90 دقيقة) بين بداية المواعيد القادمة.');
+                    return; // إيقاف تنفيذ الدالة إذا كان هناك تضارب
+                }
+            }
+            
+            // تحقق من أن الموعد القادم ليس في الماضي
+            if (newStatus === 'قادم') {
+                const updatedDateTime = new Date(`${newDate} ${newTime}`).getTime();
+                if (updatedDateTime < Date.now()) {
+                    alert('⚠️ لا يمكن تعيين موعد قادم في الماضي. يرجى اختيار وقت وتاريخ مستقبلي.');
                     return;
                 }
             }
+
 
             // تحديث بيانات الموعد
             appointments[appIndex] = {
@@ -928,7 +960,9 @@
             saveAppointments(appointments); // تتضمن الآن الدفع إلى Firebase
             closeModal();
             alert('✅ تم حفظ التعديلات بنجاح!');
-            loadDataAndRender('edit-cancel-view'); // تحديث العرض بعد الحفظ
+            // بعد الحفظ، أعد عرض كلتا القائمتين لضمان التحديث الكامل
+            loadDataAndRender('current-appointments-view');
+            loadDataAndRender('edit-cancel-view');
         });
 
 
