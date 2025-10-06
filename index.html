@@ -27,6 +27,7 @@
             --status-completed: #28a745; /* Green for completed */
             --status-cancelled: #dc3545; /* Red for cancelled */
             --delete-color: #cc0000; /* لون جديد لزر الحذف */
+            --report-color: #17a2b8; /* لون جديد للتقارير */
         }
 
         body {
@@ -133,7 +134,7 @@
         
         .cards-grid { 
             display: grid; 
-            grid-template-columns: repeat(4, 1fr); 
+            grid-template-columns: repeat(3, 1fr); /* تم التعديل إلى 3 أعمدة لاستيعاب "الأشهر" */
             gap: 40px; 
             max-width: 1000px; 
             width: 90%; 
@@ -309,6 +310,67 @@
         .day-header.past-day {
             background-color: var(--status-past); /* لون رمادي للأيام السابقة */
         }
+        .month-header {
+            width: 100%;
+            background-color: var(--report-color); /* لون مختلف لرأس الشهر */
+            color: white;
+            padding: 15px 25px;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            border-radius: 10px;
+            font-size: 1.4em;
+            font-weight: bold;
+            text-align: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        }
+
+        /* تنسيقات تقرير الحساب اليومي */
+        .daily-report-section {
+            width: 100%;
+            max-width: 900px;
+            background-color: var(--card-color);
+            padding: 20px 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            margin-top: 30px;
+            border-top: 5px solid var(--report-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .daily-report-section button {
+            background-color: var(--report-color);
+            color: white;
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-size: 1.1em;
+            cursor: pointer;
+            border: none;
+            transition: background-color 0.3s;
+            margin-bottom: 15px;
+            width: fit-content;
+        }
+        .daily-report-section button:hover {
+            background-color: #12879a;
+        }
+        .daily-report-result {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: #e6f7fa;
+            border: 1px solid #b3e0e7;
+            border-radius: 8px;
+            font-size: 1.1em;
+            color: #0d6e7e;
+            font-weight: bold;
+            text-align: center;
+            width: 90%;
+            max-width: 400px;
+        }
+        .daily-report-result.error {
+            background-color: #ffe0e0;
+            border-color: #f4baba;
+            color: #cc0000;
+        }
 
     </style>
 </head>
@@ -341,6 +403,9 @@
                 <a href="#" class="card" data-view="edit-cancel-view">
                     <span class="icon">⚙️</span>
                     <h2>تعديل وإلغاء</h2>
+                </a>
+                <a href="#" class="card" data-view="monthly-view"> <span class="icon">📅</span>
+                    <h2>الأشهر</h2>
                 </a>
                 <a href="#" class="card" data-view="services-management-view">
                     <span class="icon">💇‍♀️</span>
@@ -376,12 +441,21 @@
                 <h2>🗓️ مواعيد اليوم (القادمة والمنجزة)</h2>
                 <div class="appointments-list" id="currentAppointmentsList"></div>
             </div>
+            <div class="daily-report-section"> <button id="showDailyReportBtn">عرض الحساب اليومي</button>
+                <div id="dailyReportResult" class="daily-report-result" style="display:none;"></div>
+            </div>
         </div>
 
         <div id="edit-cancel-view" class="view">
              <div class="appointments-page">
                 <h2>⚙️ تعديل وإلغاء وحذف جميع المواعيد</h2>
                 <div class="appointments-list" id="editCancelAppointmentsList"></div>
+            </div>
+        </div>
+
+        <div id="monthly-view" class="view"> <div class="appointments-page">
+                <h2>📅 المواعيد حسب الشهر</h2>
+                <div class="appointments-list" id="monthlyAppointmentsList"></div>
             </div>
         </div>
         
@@ -440,13 +514,16 @@
         const APPOINTMENTS_KEY = 'appointments';
         const SERVICES_KEY = 'services';
         const LOGIN_STATUS_KEY = 'isLoggedIn';
+        const ADMIN_PASSCODE = '1974'; // الرمز السري للحساب اليومي
 
-        const ALL_VIEWS = ['menu-view', 'new-appointment-view', 'current-appointments-view', 'edit-cancel-view', 'services-management-view'];
+        // تم إضافة 'monthly-view' إلى قائمة جميع الواجهات
+        const ALL_VIEWS = ['menu-view', 'new-appointment-view', 'current-appointments-view', 'edit-cancel-view', 'monthly-view', 'services-management-view'];
         const viewTitles = {
             'menu-view': '✨ إدارة مركز تجميل ✨',
             'new-appointment-view': '📝 تسجيل موعد جديد',
             'current-appointments-view': '🗓️ مواعيد اليوم',
             'edit-cancel-view': '⚙️ تعديل وإلغاء وحذف المواعيد',
+            'monthly-view': '📅 المواعيد حسب الشهر', // عنوان الواجهة الجديدة
             'services-management-view': '💇‍♀️ إدارة الخدمات'
         };
 
@@ -459,8 +536,11 @@
         const saveResultDiv = document.getElementById('save-result');
         const currentAppointmentsList = document.getElementById('currentAppointmentsList');
         const editCancelAppointmentsList = document.getElementById('editCancelAppointmentsList');
+        const monthlyAppointmentsList = document.getElementById('monthlyAppointmentsList'); // العنصر الجديد لقائمة الأشهر
         const editForm = document.getElementById('editForm');
         const logoutBtn = document.getElementById('logoutBtn');
+        const showDailyReportBtn = document.getElementById('showDailyReportBtn'); // زر الحساب اليومي
+        const dailyReportResult = document.getElementById('dailyReportResult'); // مكان عرض نتيجة الحساب اليومي
         
         // ----------------------------------------------------
         // منطق إدارة الخدمات (باستخدام localStorage)
@@ -476,7 +556,6 @@
             localStorage.setItem(SERVICES_KEY, JSON.stringify(services));
             populateServiceSelectors(); 
             renderServiceManagement(); 
-            // بعد الحفظ المحلي، ادفع التغيير إلى Firebase
             if (window.firebaseSync && typeof window.firebaseSync.pushServicesToFirebase === 'function') {
                 window.firebaseSync.pushServicesToFirebase();
             }
@@ -580,7 +659,12 @@
                     renderServiceManagement();
                 }
 
-                loadDataAndRender(viewId); 
+                // إضافة شرط جديد لـ 'monthly-view'
+                if (viewId === 'monthly-view') {
+                    loadDataAndRenderMonthly(); // دالة جديدة لـ 'monthly-view'
+                } else {
+                    loadDataAndRender(viewId); 
+                }
             }
         }
         
@@ -653,6 +737,13 @@
             return dateTimeA - dateTimeB; 
         }
 
+        const arabicMonths = [
+            "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
+            "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"
+        ];
+        const arabicDays = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+
+
         // ----------------------------------------------------
         // تحميل وحفظ المواعيد (باستخدام localStorage ومزامنة Firebase)
         // ----------------------------------------------------
@@ -679,6 +770,7 @@
                 
                 loadDataAndRender('edit-cancel-view'); 
                 loadDataAndRender('current-appointments-view');
+                loadDataAndRenderMonthly(); // لتحديث قائمة الأشهر أيضاً
             }
         }
 
@@ -695,11 +787,11 @@
 
             if (viewId === 'current-appointments-view') {
                 const today = new Date();
-                today.setHours(0, 0, 0, 0); // لإزالة الوقت ومقارنة التاريخ فقط
+                today.setHours(0, 0, 0, 0); 
 
                 const todayAppointments = appointments.filter(app => {
                     const appDate = new Date(app.date);
-                    appDate.setHours(0, 0, 0, 0); // لإزالة الوقت ومقارنة التاريخ فقط
+                    appDate.setHours(0, 0, 0, 0); 
                     return appDate.getTime() === today.getTime();
                 });
                 
@@ -709,17 +801,133 @@
 
             } else if (viewId === 'edit-cancel-view') {
                 const allAppointments = [...appointments];
-                // الترتيب الأولي حسب تاريخ ووقت الإنشاء ليكون الأكثر حداثة في البداية عند عرض كل شيء
-                // أو يمكن ترتيبها حسب تاريخ الموعد نفسه (الخيار الحالي هو الأفضل للتعديل)
                 const sortedData = allAppointments.sort((a, b) => {
                     const dateTimeA = new Date(`${a.date} ${a.time}`);
                     const dateTimeB = new Date(`${b.date} ${b.time}`);
-                    return dateTimeB - dateTimeA; // الأحدث أولاً
+                    return dateTimeB - dateTimeA; 
                 });
 
                 renderEditCancelAppointmentsListHtml(sortedData);
             }
         }
+
+        // دالة جديدة لـ 'monthly-view'
+        function loadDataAndRenderMonthly() {
+            const appointments = getAppointments();
+            monthlyAppointmentsList.innerHTML = '';
+
+            const noDataMessage = '<p style="text-align: center; margin-top: 50px; color: var(--primary-color); font-weight: bold;">لا توجد مواعيد للعرض حالياً.</p>';
+            
+            if (appointments.length === 0) {
+                monthlyAppointmentsList.innerHTML = noDataMessage;
+                return;
+            }
+
+            // تجميع المواعيد حسب الشهر والسنة
+            const appointmentsByMonth = {};
+            appointments.forEach(app => {
+                const dateObj = new Date(app.date);
+                const year = dateObj.getFullYear();
+                const month = dateObj.getMonth(); // 0-11
+                const monthKey = `${year}-${month.toString().padStart(2, '0')}`; // مثال: 2023-10
+
+                if (!appointmentsByMonth[monthKey]) {
+                    appointmentsByMonth[monthKey] = [];
+                }
+                appointmentsByMonth[monthKey].push(app);
+            });
+
+            // فرز الأشهر (من الأحدث إلى الأقدم)
+            const sortedMonthKeys = Object.keys(appointmentsByMonth).sort((keyA, keyB) => {
+                return new Date(keyB) - new Date(keyA);
+            });
+
+            sortedMonthKeys.forEach(monthKey => {
+                const [year, monthIndex] = monthKey.split('-').map(Number);
+                const monthName = arabicMonths[monthIndex];
+
+                // عنوان الشهر
+                const monthHeader = document.createElement('div');
+                monthHeader.className = 'month-header';
+                monthHeader.textContent = `${monthName} ${year}`;
+                monthlyAppointmentsList.appendChild(monthHeader);
+
+                // فرز المواعيد داخل كل شهر حسب التاريخ والوقت (الأحدث أولاً)
+                const dayAppointments = appointmentsByMonth[monthKey].sort((a, b) => {
+                    const dateTimeA = new Date(`${a.date} ${a.time}`);
+                    const dateTimeB = new Date(`${b.date} ${b.time}`);
+                    return dateTimeB - dateTimeA;
+                });
+
+                // ثم عرضها مجمعة حسب اليوم (مثل واجهة التعديل والإلغاء)
+                const appointmentsByDateInMonth = {};
+                dayAppointments.forEach(app => {
+                    if (!appointmentsByDateInMonth[app.date]) {
+                        appointmentsByDateInMonth[app.date] = [];
+                    }
+                    appointmentsByDateInMonth[app.date].push(app);
+                });
+
+                const sortedDatesInMonth = Object.keys(appointmentsByDateInMonth).sort((dateA, dateB) => {
+                    return new Date(dateB) - new Date(dateA); 
+                });
+
+                const now = new Date();
+                now.setHours(0,0,0,0);
+
+                sortedDatesInMonth.forEach(date => {
+                    const dateObj = new Date(date);
+                    const dayName = arabicDays[dateObj.getDay()];
+                    const isToday = (dateObj.setHours(0,0,0,0) === now.getTime());
+                    const isPastDay = (dateObj.getTime() < now.getTime());
+
+                    const dayHeader = document.createElement('div');
+                    dayHeader.className = `day-header ${isToday ? 'today' : (isPastDay ? 'past-day' : '')}`;
+                    dayHeader.textContent = `${dayName}, ${date}`; 
+                    monthlyAppointmentsList.appendChild(dayHeader);
+
+                    appointmentsByDateInMonth[date].sort(compareAppointmentsByTime).forEach(app => {
+                        let statusDisplay = app.status;
+                        const appDateTime = new Date(`${app.date} ${app.time}`);
+                        if (app.status === 'قادم' && appDateTime < new Date()) {
+                            statusDisplay = 'موعد سابق'; 
+                        }
+
+                        const statusInfo = getStatusClassAndColor(statusDisplay);
+                        const formattedTime = formatTime12Hour(app.time);
+
+                        const item = document.createElement('div');
+                        item.className = 'appointment-item'; 
+                        item.setAttribute('data-id', app.id);
+                        item.setAttribute('data-status', statusDisplay); 
+                        item.onclick = (e) => toggleAppointmentDetails(e.currentTarget); 
+
+                        item.innerHTML = `
+                            <div class="item-header">
+                                <span>${app.name} (${app.service})</span>
+                                <div style="display:flex; align-items:center;">
+                                    <span class="status-badge ${statusInfo.class}" style="margin-left: 10px;">${statusDisplay}</span>
+                                    <span>${formattedTime}</span>
+                                </div>
+                            </div>
+                            <div class="item-details">
+                                <div class="detail-row"><strong>الهاتف:</strong> <span class="phone-number">${formatPhoneNumber(app.phone)}</span></div>
+                                <div class="detail-row"><strong>الخدمة:</strong> ${app.service}</div>
+                                <div class="detail-row"><strong>التكلفة:</strong> ${app.totalCost ? app.totalCost.toLocaleString('ar-IQ') : 'لم تحدد'} د.ع.</div>
+                                <div class="detail-row"><strong>الموظف:</strong> ${app.employee || 'غير محدد'}</div>
+                                <div class="detail-row"><strong>الملاحظات:</strong> ${app.notes || 'لا يوجد'}</div>
+                                <div style="grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px; border-top: 1px dashed #eee; padding-top: 10px;">
+                                    <button class="action-btn" style="background-color: var(--edit-color); color: white;" onclick="event.stopPropagation(); openEditModal('${app.id}')">تعديل/الحالة</button>
+                                    <button class="delete-btn" onclick="event.stopPropagation(); deleteAppointment('${app.id}')">حذف نهائي</button>
+                                </div>
+                            </div>
+                        `;
+                        monthlyAppointmentsList.appendChild(item);
+                    });
+                });
+            });
+        }
+
 
         // ----------------------------------------------------
         // تحديث الواجهات بعد المزامنة من Firebase (حدث مخصص)
@@ -727,7 +935,12 @@
         window.addEventListener('localStorageUpdated', () => {
             const currentViewId = getCurrentViewId();
             if (currentViewId !== 'menu-view') { 
-                loadDataAndRender(currentViewId);
+                // تحديث خاص لواجهة الأشهر إذا كانت مفتوحة
+                if (currentViewId === 'monthly-view') {
+                    loadDataAndRenderMonthly();
+                } else {
+                    loadDataAndRender(currentViewId);
+                }
                 populateServiceSelectors();
                 if (currentViewId === 'services-management-view') {
                     renderServiceManagement();
@@ -857,7 +1070,7 @@
 
 
         // ----------------------------------------------------
-        // منطق عرض وتعديل المواعيد (لواجهة 'تعديل وإلغاء') - **تم تعديل هذه الدالة**
+        // منطق عرض وتعديل المواعيد (لواجهة 'تعديل وإلغاء')
         // ----------------------------------------------------
         function renderEditCancelAppointmentsListHtml(list) {
             editCancelAppointmentsList.innerHTML = '';
@@ -867,7 +1080,6 @@
                 return;
             }
 
-            // تجميع المواعيد حسب التاريخ
             const appointmentsByDate = {};
             list.forEach(app => {
                 if (!appointmentsByDate[app.date]) {
@@ -876,15 +1088,13 @@
                 appointmentsByDate[app.date].push(app);
             });
 
-            // الحصول على التواريخ وترتيبها (الأحدث أولاً)
             const sortedDates = Object.keys(appointmentsByDate).sort((dateA, dateB) => {
-                return new Date(dateB) - new Date(dateA); // الأحدث أولاً
+                return new Date(dateB) - new Date(dateA); 
             });
 
             const today = new Date();
             today.setHours(0,0,0,0);
-            const arabicDays = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
-
+            
 
             sortedDates.forEach(date => {
                 const dateObj = new Date(date);
@@ -892,13 +1102,11 @@
                 const isToday = (dateObj.setHours(0,0,0,0) === today.getTime());
                 const isPastDay = (dateObj.getTime() < today.getTime());
 
-                // عنوان اليوم
                 const dayHeader = document.createElement('div');
                 dayHeader.className = `day-header ${isToday ? 'today' : (isPastDay ? 'past-day' : '')}`;
-                dayHeader.textContent = `${dayName}, ${date}`; // مثال: الأحد, 2023-10-27
+                dayHeader.textContent = `${dayName}, ${date}`; 
                 editCancelAppointmentsList.appendChild(dayHeader);
 
-                // فرز المواعيد داخل كل يوم حسب الوقت (الأقرب أولاً)
                 const dayAppointments = appointmentsByDate[date].sort(compareAppointmentsByTime);
 
                 dayAppointments.forEach(app => {
@@ -1037,7 +1245,46 @@
             
             loadDataAndRender('current-appointments-view');
             loadDataAndRender('edit-cancel-view');
+            loadDataAndRenderMonthly(); // تحديث قائمة الأشهر بعد أي تعديل
         });
+
+
+        // ----------------------------------------------------
+        // منطق الحساب اليومي (التقرير) - **الخاصية الجديدة**
+        // ----------------------------------------------------
+        showDailyReportBtn.addEventListener('click', () => {
+            const passcode = prompt("الرجاء إدخال الرمز السري لعرض الحساب اليومي:");
+            if (passcode === ADMIN_PASSCODE) {
+                calculateDailyRevenue();
+            } else if (passcode !== null) { // إذا لم يكن المستخدم قد ضغط على إلغاء
+                dailyReportResult.textContent = '❌ الرمز السري غير صحيح.';
+                dailyReportResult.className = 'daily-report-result error';
+                dailyReportResult.style.display = 'block';
+                setTimeout(() => { dailyReportResult.style.display = 'none'; }, 3000);
+            }
+        });
+
+        function calculateDailyRevenue() {
+            const appointments = getAppointments();
+            const today = new Date();
+            today.setHours(0, 0, 0, 0); 
+            let totalRevenue = 0;
+
+            appointments.forEach(app => {
+                const appDate = new Date(app.date);
+                appDate.setHours(0, 0, 0, 0);
+
+                // نحسب فقط المواعيد المنجزة والخاصة باليوم الحالي
+                if (appDate.getTime() === today.getTime() && app.status === 'منجز') {
+                    totalRevenue += (app.totalCost || 0);
+                }
+            });
+
+            dailyReportResult.textContent = `💰 إجمالي إيرادات المواعيد المنجزة لليوم: ${totalRevenue.toLocaleString('ar-IQ')} د.ع.`;
+            dailyReportResult.className = 'daily-report-result';
+            dailyReportResult.style.display = 'block';
+            setTimeout(() => { dailyReportResult.style.display = 'none'; }, 10000); // إظهار النتيجة لمدة أطول
+        }
 
 
         // ----------------------------------------------------
