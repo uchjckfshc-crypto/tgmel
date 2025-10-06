@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>تسجيل دخول — واجهة جذابة + حساب تلقائي</title>
+<style>
+/* كل التنسيقات التي أرسلتها (CSS) تبقى كما هي بدون لمسها */
+:root{
+  --bg-base:#FED8D7;
+  --bg-accent:#F8D0CC;
+  --card:#fff;
+  --accent:#7B3E6A;
+  --accent-hover:#9c5292;
+  --input-bg:#fff0f5;
+  --input-border:#e0c2d3;
+  --input-focus:#d48fd7;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  min-height:100vh; display:flex; align-items:center; justify-content:center;
+  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--bg-base);
+  background-image: 
+    radial-gradient(circle at top left, var(--bg-accent) 0%, transparent 40%),
+    radial-gradient(circle at bottom right, var(--bg-accent) 0%, transparent 40%),
+    linear-gradient(135deg, rgba(255,255,255,0.3) 25%, transparent 25%),
+    linear-gradient(225deg, rgba(255,255,255,0.3) 25%, transparent 25%),
+    linear-gradient(45deg, rgba(255,255,255,0.3) 25%, transparent 25%),
+    linear-gradient(315deg, rgba(255,255,255,0.3) 25%, transparent 25%);
+  background-size: 800px 800px, 800px 800px, 40px 40px, 40px 40px, 40px 40px, 40px 40px;
+  background-position: 0 0, 0 0, 0 0, 10px 0, 0 10px, 10px 10px;
+  animation: backgroundShift 20s infinite alternate linear;
+}
+
+@keyframes backgroundShift {
+  0% { background-position: 0 0, 0 0, 0 0, 10px 0, 0 10px, 10px 10px; }
+  100% { background-position: 200px 200px, -200px -200px, 20px 20px, 30px 20px, 20px 30px, 30px 30px; }
+}
+
+.card{
+  width:360px; padding:32px; border-radius:20px; background:var(--card);
+  box-shadow: 0 15px 40px rgba(0,0,0,0.18); text-align:center;
+}
+
+.character{
+  width:140px; height:140px; margin:0 auto 24px; position:relative;
+}
+
+.head{
+  width:100%; height:100%; border-radius:50%;
+  background: linear-gradient(180deg,#ffcee7,#d48fd7);
+  position:relative; overflow:visible;
+}
+
+/* العيون */
+.eye{ width:22px; height:22px; background:#fff; border-radius:50%; position:absolute; top:48px; }
+.eye.left{ left:38px; }
+.eye.right{ right:38px; }
+.pupil{ width:12px; height:12px; background:#111; border-radius:50%; position:absolute; top:5px; left:5px; transition:transform .08s linear;}
+
+/* اليدان */
+.hand{
+  width:28px; height:66px; background:#ffbfe6; position:absolute; border-radius:16px;
+  transition: all .36s cubic-bezier(.2,.9,.28,1);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.12);
+}
+.hand.left{ transform: rotate(18deg); left:-8px; top:42px; }
+.hand.right{ transform: rotate(-18deg); right:-8px; top:42px; }
+.hand .palm{
+  display:block; width:46px; height:46px; border-radius:50%;
+  background: linear-gradient(180deg,#ffcee7,#e69ad6);
+  position:absolute; left:50%; top:36px; transform:translateX(-50%);
+  box-shadow: inset 0 -4px 8px rgba(0,0,0,0.06);
+  transition: all .36s cubic-bezier(.2,.9,.28,1);
+}
+
+/* واجهة تسجيل الدخول */
+form{ display:flex; flex-direction:column; gap:16px; }
+input{
+  padding:14px; border-radius:12px; border:2px solid var(--input-border); font-size:15px; 
+  background-color: var(--input-bg); transition: all .25s ease-in-out;
+}
+input:focus{ border-color: var(--input-focus); outline:none; background-color:#fff0fa; box-shadow:0 4px 12px rgba(216,133,197,0.2);}
+.pw-wrap{ position:relative; }
+.toggle{ position:absolute; top:50%; transform:translateY(-50%); left:12px; background:transparent; border:none; cursor:pointer; font-size:20px;}
+
+/* زر تسجيل الدخول */
+button.submit{
+  padding:14px; border-radius:12px; border:none; font-size:16px; background: linear-gradient(90deg,var(--accent),#e572d4);
+  color:#fff; font-weight:600; cursor:pointer; transition: all .25s ease-in-out;
+}
+button.submit:hover{ background: linear-gradient(90deg,var(--accent-hover),#d359c6); transform: translateY(-2px); box-shadow:0 8px 20px rgba(0,0,0,0.2);}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="character" id="character">
+    <div class="head" id="head">
+      <div class="eye left" id="eye-left"><div class="pupil" id="pupil-left"></div></div>
+      <div class="eye right" id="eye-right"><div class="pupil" id="pupil-right"></div></div>
+    </div>
+    <div class="hand left" id="hand-left"><div class="palm" id="palm-left"></div></div>
+    <div class="hand right" id="hand-right"><div class="palm" id="palm-right"></div></div>
+  </div>
+
+  <form id="loginForm">
+    <input type="text" id="username" placeholder="البريد الإلكتروني" autocomplete="username" required />
+    <div class="pw-wrap">
+      <input id="password" type="password" placeholder="كلمة المرور" autocomplete="current-password" required />
+      <button type="button" id="toggle" class="toggle" aria-pressed="false">👁️</button>
+    </div>
+    <button type="submit" class="submit">تسجيل الدخول</button>
+  </form>
+</div>
+
+<script>
+// المجسم واليدين والعيون (كود التفاعل كما أرسلته)
+const handL = document.getElementById('hand-left');
+const handR = document.getElementById('hand-right');
+const palmL = document.getElementById('palm-left');
+const palmR = document.getElementById('palm-right');
+const eyeL = document.getElementById('eye-left');
+const eyeR = document.getElementById('eye-right');
+const pupilL = document.getElementById('pupil-left');
+const pupilR = document.getElementById('pupil-right');
+const pass = document.getElementById('password');
+const toggle = document.getElementById('toggle');
+const form = document.getElementById('loginForm');
+
+function coverEye(handEl, palmEl, eyeEl){
+  const parentRect = document.getElementById('character').getBoundingClientRect();
+  const eyeRect = eyeEl.getBoundingClientRect();
+  const centerX = eyeRect.left + eyeRect.width/2 - parentRect.left;
+  const centerY = eyeRect.top + eyeRect.height/2 - parentRect.top;
+  const handWidth = handEl.offsetWidth;
+  const palmOffsetXInsideHand = handWidth/2;
+  const palmOffsetYInsideHand = 36;
+  const desiredHandTop = centerY - palmOffsetYInsideHand - 23;
+  const desiredHandLeft = centerX - palmOffsetXInsideHand;
+  if (handEl.classList.contains('left')){
+    handEl.style.left = desiredHandLeft + 'px';
+    handEl.style.top = desiredHandTop + 'px';
+    handEl.style.transform = 'rotate(-8deg)';
+    palmL.style.transform = 'translateX(-50%)'; // تم تصحيح هنا
+  } else {
+    const rightVal = parentRect.width - (desiredHandLeft + handEl.offsetWidth);
+    handEl.style.right = rightVal + 'px';
+    handEl.style.top = desiredHandTop + 'px';
+    handEl.style.transform = 'rotate(8deg)';
+    palmR.style.transform = 'translateX(-50%)'; // تم تصحيح هنا
+  }
+}
+
+function handsLow(){
+  handL.style.left='-8px'; handL.style.top='42px'; handL.style.transform='rotate(18deg)'; handL.style.right='';
+  handR.style.right='-8px'; handR.style.top='42px'; handR.style.transform='rotate(-18deg)'; handR.style.left='';
+  palmL.style.transform='translateX(-50%)';
+  palmR.style.transform='translateX(-50%)';
+}
+
+pass.addEventListener('focus', ()=>{ setTimeout(()=>{ coverEye(handL,palmL,eyeL); coverEye(handR,palmR,eyeR); },40); });
+pass.addEventListener('blur', ()=>{ setTimeout(handsLow,90); });
+
+toggle.addEventListener('click', ()=>{
+  if(pass.type==='password'){
+    pass.type='text'; toggle.textContent='🙈';
+    coverEye(handL,palmL,eyeL); coverEye(handR,palmR,eyeR);
+  } else { pass.type='password'; toggle.textContent='👁️'; handsLow(); }
+});
+
+document.addEventListener('mousemove', e=>{
+  function move(eyeEl,pupilEl){
+    const r=eyeEl.getBoundingClientRect();
+    const cx=r.left+r.width/2; const cy=r.top+r.height/2;
+    const dx=e.clientX-cx; const dy=e.clientY-cy;
+    const max=6; const dist=Math.sqrt(dx*dx+dy*dy);
+    const ux=dist===0?0:dx/dist; const uy=dist===0?0:dy/dist;
+    pupilEl.style.transform=`translate(${ux*Math.min(max,dist*0.15)}px, ${uy*Math.min(max,dist*0.15)}px)`;
+  }
+  move(eyeL,pupilL); move(eyeR,pupilR);
+});
+
+handsLow();
+
+// ----------------------- إضافة منطق الحفظ والتسجيل والتحويل -----------------------
+form.addEventListener('submit', e=>{
+  e.preventDefault();
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value.trim();
+  if(!username || !password){ alert('الرجاء ملء جميع الحقول'); return; }
+
+  let accounts = JSON.parse(localStorage.getItem('accounts') || '{}');
+
+  if(accounts[username]){
+    // حساب موجود
+    if(accounts[username] === password){
+      localStorage.setItem('isLoggedIn', 'true'); 
+      alert('تم تسجيل الدخول بنجاح! يتم التحويل إلى القائمة الرئيسية.');
+      // تأكد من أن الملف الرئيسي اسمه index.html
+      window.location.href = 'index.html'; 
+    } else {
+      alert('كلمة المرور خاطئة. حاول مجدداً.');
+    }
+  } else {
+    // إنشاء حساب جديد تلقائي
+    accounts[username] = password;
+    localStorage.setItem('accounts', JSON.stringify(accounts));
+    localStorage.setItem('isLoggedIn', 'true');
+    alert('حساب جديد! تم إنشاء الحساب بنجاح ويتم تسجيل دخولك.');
+    // تأكد من أن الملف الرئيسي اسمه index.html
+    window.location.href = 'index.html'; 
+  }
+});
+</script>
+</body>
+</html>
