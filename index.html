@@ -832,6 +832,19 @@
         // ----------------------------------------------------
         // دوال عرض المواعيد في القوائم المختلفة
         // ----------------------------------------------------
+
+        // دالة جديدة: تحويل الوقت من 24 ساعة إلى 12 ساعة
+        function formatTime12Hour(time24) {
+            const [hour, minute] = time24.split(':');
+            let h = parseInt(hour);
+            const ampm = h >= 12 ? 'م' : 'ص'; // م للـ PM و ص للـ AM
+            h = h % 12;
+            h = h ? h : 12; // الساعة '0' تصبح '12'
+            // التأكد من أن الدقائق دائماً برقمين
+            const m = minute.padStart(2, '0');
+            return `${h}:${m} ${ampm}`;
+        }
+        
         function renderAppointments(container, appointments, type) {
             container.innerHTML = '';
             if (appointments.length === 0) {
@@ -919,10 +932,13 @@
             
             const [year, month, day] = app.date.split('-');
             const formattedDate = `${day}-${month}-${year}`;
+            
+            // **التعديل رقم 1: استخدام تنسيق 12 ساعة**
+            const formattedTime = formatTime12Hour(app.time); 
 
             item.innerHTML = `
                 <div class="item-header">
-                    <span>${formattedDate} الساعة ${app.time}</span>
+                    <span>${app.name} - ${formattedDate} الساعة ${formattedTime}</span> 
                     <span class="status-badge ${getStatusClass(app.status)}">${app.status}</span>
                 </div>
                 <div class="item-details">
